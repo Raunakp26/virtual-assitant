@@ -3,15 +3,6 @@ import { v2 as cloudinary } from "cloudinary";
 
 // Function to check and configure Cloudinary
 const configureCloudinary = () => {
-  // Debug: Show all environment variables
-  console.log("=== ENVIRONMENT VARIABLES DEBUG ===");
-  console.log("All env vars:", Object.keys(process.env).filter(key => key.includes('CLOUDINARY')));
-  console.log("All env vars starting with CLOUD:", Object.keys(process.env).filter(key => key.startsWith('CLOUD')));
-  console.log("All env vars:", Object.keys(process.env));
-  console.log("CLOUDINARY_CLOUD_NAME:", process.env.CLOUDINARY_CLOUD_NAME);
-  console.log("CLOUDINARY_API_KEY:", process.env.CLOUDINARY_API_KEY ? "Set (length: " + process.env.CLOUDINARY_API_KEY.length + ")" : "Missing");
-  console.log("CLOUDINARY_API_SECRET:", process.env.CLOUDINARY_API_SECRET ? "Set (length: " + process.env.CLOUDINARY_API_SECRET.length + ")" : "Missing");
-  console.log("===================================");
 
   // Check if Cloudinary environment variables are set
   if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
