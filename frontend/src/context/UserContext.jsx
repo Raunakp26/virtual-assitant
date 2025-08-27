@@ -7,7 +7,7 @@ function UserContext({ children }) {
   const [userData, setUserData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const serverUrl = "http://localhost:8000";
+  const serverUrl = "https://virtual-assitantbackend.onrender.com";
   const [frontendImage, setFrontendImage] = useState(null);
   const [backendImage, setBackendImage] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
