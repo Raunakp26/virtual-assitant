@@ -9,11 +9,31 @@ function Home() {
   const navigate = useNavigate();
 
   const [listening, setListening] = useState(false);
+  const [userInteracted, setUserInteracted] = useState(false);
   const isSpeakingRef = useRef(false);
   const recognitionRef = useRef(null);
   const isRecognizingRef = useRef(false);
   const isMountedRef = useRef(true);
   const synth = window.speechSynthesis;
+
+  // Track user interaction for autoplay policy compliance
+  useEffect(() => {
+    const handleUserInteraction = () => {
+      setUserInteracted(true);
+      console.log("User interaction detected - speech enabled");
+    };
+
+    // Listen for any user interaction
+    document.addEventListener('click', handleUserInteraction, { once: true });
+    document.addEventListener('keydown', handleUserInteraction, { once: true });
+    document.addEventListener('touchstart', handleUserInteraction, { once: true });
+
+    return () => {
+      document.removeEventListener('click', handleUserInteraction);
+      document.removeEventListener('keydown', handleUserInteraction);
+      document.removeEventListener('touchstart', handleUserInteraction);
+    };
+  }, []);
 
   // Function to check and log available voices
   const checkVoices = () => {
@@ -38,8 +58,7 @@ function Home() {
 
   const handleLogOut = async () => {
     try {
-  await axios.get(`${serverUrl}/api/auth/logout`, { withCredentials: true });
-
+      await axios.get(`${serverUrl}/api/auth/logout`, { withCredentials: true });
       setUserData(null);
       navigate("/signin");
     } catch (error) {
@@ -49,6 +68,11 @@ function Home() {
   };
 
   const startRecognition = () => {
+    if (!recognitionRef.current) {
+      console.log("Recognition not initialized, skipping start");
+      return;
+    }
+
     if (isRecognizingRef.current) {
       console.log("Recognition already running, skipping start");
       return;
@@ -59,14 +83,20 @@ function Home() {
       return;
     }
 
-    if (!recognitionRef.current) {
-      console.log("Recognition not initialized, skipping start");
-      return;
-    }
-    
     try {
-      recognitionRef.current.start();
-      console.log("Recognition start requested");
+      // Request microphone permission first
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(() => {
+          if (recognitionRef.current && !isRecognizingRef.current) {
+            recognitionRef.current.start();
+            console.log("Recognition start requested");
+          }
+        })
+        .catch((error) => {
+          console.error("Microphone permission denied:", error);
+          // Show user-friendly message
+          alert("कृपया microphone permission दें voice assistant के लिए");
+        });
     } catch (error) {
       if (error.name !== "InvalidStateError") {
         console.error("Recognition start error:", error);
@@ -75,9 +105,9 @@ function Home() {
   };
 
   const stopRecognition = () => {
-    if (isRecognizingRef.current) {
+    if (isRecognizingRef.current && recognitionRef.current) {
       try {
-        recognitionRef.current?.stop();
+        recognitionRef.current.stop();
         console.log("Recognition stop requested");
       } catch (error) {
         console.error("Recognition stop error:", error);
@@ -101,11 +131,30 @@ function Home() {
   const speak = (text) => {
     console.log("Speaking:", text);
     
+    // Check if user has interacted first (for autoplay policy)
+    if (!userInteracted) {
+      console.log("User interaction required for speech");
+      // Show text instead or request interaction
+      alert(`Assistant says: ${text}`);
+      return;
+    }
+
+    // Check if speech synthesis is available
+    if (!('speechSynthesis' in window)) {
+      console.error("Speech synthesis not supported");
+      alert(`Assistant says: ${text}`);
+      return;
+    }
+    
     // Cancel any ongoing speech
-    synth.cancel();
+    try {
+      synth.cancel();
+    } catch (error) {
+      console.error("Error canceling speech:", error);
+    }
     
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "en-US"; // Changed to English for better compatibility
+    utterance.lang = "en-US";
     
     // Try to select an English voice
     const voices = window.speechSynthesis.getVoices();
@@ -118,7 +167,7 @@ function Home() {
       console.log("Using voice:", englishVoice.name);
     }
 
-    utterance.rate = 0.9; // Slightly slower for better clarity
+    utterance.rate = 0.9;
     utterance.pitch = 1.0;
     utterance.volume = 1.0;
 
@@ -131,19 +180,27 @@ function Home() {
     utterance.onend = () => {
       console.log("Speech ended");
       isSpeakingRef.current = false;
-      // Restart recognition after a longer delay to ensure speech is fully complete
+      // Restart recognition after speech completes
       setTimeout(() => {
         if (!isRecognizingRef.current && isMountedRef.current) {
           console.log("Restarting recognition after speech");
           startRecognition();
         }
-      }, 1000);
+      }, 1500);
     };
     
     utterance.onerror = (event) => {
       console.error("Speech error:", event.error);
       isSpeakingRef.current = false;
-      // Restart recognition even if speech fails
+      
+      // Handle different speech errors
+      if (event.error === 'not-allowed') {
+        alert("Speech permission denied. कृपया browser settings में speech को allow करें");
+      } else if (event.error === 'network') {
+        console.log("Network error, trying again...");
+      }
+      
+      // Always restart recognition after error
       setTimeout(() => {
         if (!isRecognizingRef.current && isMountedRef.current) {
           console.log("Restarting recognition after speech error");
@@ -152,12 +209,18 @@ function Home() {
       }, 1000);
     };
 
-    synth.speak(utterance);
+    try {
+      synth.speak(utterance);
+    } catch (error) {
+      console.error("Error starting speech:", error);
+      isSpeakingRef.current = false;
+      alert(`Assistant says: ${text}`);
+    }
   };
 
   const handleCommand = (data, transcript) => {
     const { type, response } = data;
-    const userInput = data.userInput || transcript; // fallback
+    const userInput = data.userInput || transcript;
 
     console.log("=== HANDLING COMMAND ===");
     console.log("Type:", type);
@@ -168,6 +231,7 @@ function Home() {
     // Check if response exists and is not empty
     if (!response || response.trim() === "") {
       console.error("No response to speak!");
+      speak("Sorry, I couldn't process that request.");
       return;
     }
 
@@ -177,7 +241,7 @@ function Home() {
     // Handle different command types
     if (type === "google_search") {
       const query = encodeURIComponent(userInput);
-   window.open(`https://www.google.com/search?q=${query}`, "_blank");
+      window.open(`https://www.google.com/search?q=${query}`, "_blank");
     }
 
     if (type === "calculator_open") {
@@ -209,15 +273,25 @@ function Home() {
       return;
     }
 
+    // Check if speech recognition is supported
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
+    
+    if (!SpeechRecognition) {
+      console.error("Speech recognition not supported in this browser");
+      alert("Speech recognition is not supported in this browser. कृपया Chrome या Firefox का उपयोग करें।");
+      return;
+    }
 
+    const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.lang = "en-US";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    
     recognitionRef.current = recognition;
 
     const safeRecognition = () => {
-      if (!isSpeakingRef.current && !isRecognizingRef.current) {
+      if (!isSpeakingRef.current && !isRecognizingRef.current && isMountedRef.current) {
         startRecognition();
       } else {
         console.log("Skipping recognition start - speaking or already recognizing");
@@ -235,10 +309,10 @@ function Home() {
       isRecognizingRef.current = false;
       setListening(false);
 
-      // Only restart if not speaking and not manually stopped
+      // Only restart if not speaking and component is still mounted
       if (!isSpeakingRef.current && isMountedRef.current) {
         console.log("Scheduling recognition restart");
-        setTimeout(safeRecognition, 2000); // Increased delay to prevent rapid restarts
+        setTimeout(safeRecognition, 2000);
       }
     };
 
@@ -247,10 +321,27 @@ function Home() {
       isRecognizingRef.current = false;
       setListening(false);
       
-      // Don't restart on aborted errors (these are usually intentional stops)
-      if (event.error !== "aborted" && !isSpeakingRef.current && isMountedRef.current) {
+      // Handle different recognition errors
+      if (event.error === 'no-speech') {
+        console.log("No speech detected, will retry...");
+      } else if (event.error === 'audio-capture') {
+        console.error("No microphone found or permission denied");
+        alert("Microphone नहीं मिला या permission नहीं मिली। कृपया microphone को allow करें।");
+        return; // Don't restart on audio-capture errors
+      } else if (event.error === 'not-allowed') {
+        console.error("Microphone permission denied");
+        alert("Microphone permission denied. कृपया browser settings में microphone को allow करें।");
+        return; // Don't restart on permission errors
+      }
+      
+      // Restart recognition for recoverable errors
+      if (event.error !== "aborted" && 
+          event.error !== "not-allowed" && 
+          event.error !== "audio-capture" && 
+          !isSpeakingRef.current && 
+          isMountedRef.current) {
         console.log("Scheduling recognition restart after error");
-        setTimeout(safeRecognition, 3000); // Longer delay after errors
+        setTimeout(safeRecognition, 3000);
       }
     };
 
@@ -273,7 +364,6 @@ function Home() {
             handleCommand({ ...data, userInput: data.userInput || transcript }, transcript);
           } else {
             console.log("No response from assistant");
-            // Speak a fallback message
             speak("I'm sorry, I couldn't understand that. Please try again.");
           }
         } catch (error) {
@@ -283,24 +373,40 @@ function Home() {
       }
     };
 
-    const fallback = setInterval(() => {
+    // Fallback mechanism to ensure recognition keeps running
+    const fallbackInterval = setInterval(() => {
       if (!isSpeakingRef.current && !isRecognizingRef.current && isMountedRef.current) {
         console.log("Fallback: restarting recognition");
         safeRecognition();
       }
-    }, 15000); // Increased interval to reduce frequency
+    }, 15000);
 
-    safeRecognition();
+    // Start recognition after a delay to ensure everything is initialized
+    setTimeout(() => {
+      if (isMountedRef.current) {
+        safeRecognition();
+      }
+    }, 1000);
 
     return () => {
       console.log("Cleaning up recognition");
       isMountedRef.current = false;
+      clearInterval(fallbackInterval);
       stopRecognition();
       setListening(false);
       isRecognizingRef.current = false;
-      clearInterval(fallback);
+      
+      // Clean up recognition reference
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch (error) {
+          console.log("Error aborting recognition:", error);
+        }
+        recognitionRef.current = null;
+      }
     };
-  }, []); // Remove userData dependency
+  }, []);
 
   // Separate effect to handle userData changes
   useEffect(() => {
@@ -311,6 +417,13 @@ function Home() {
 
   return (
     <div className="w-full h-screen bg-gradient-to-t from-black to-[#030353] flex flex-col justify-center items-center relative">
+      {/* User interaction prompt */}
+      {!userInteracted && (
+        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-yellow-500 text-black px-4 py-2 rounded-lg shadow-lg">
+          Click anywhere to enable voice features
+        </div>
+      )}
+
       {/* Buttons in top-right */}
       <div className="absolute top-6 right-6 flex gap-3">
         <button
@@ -342,30 +455,30 @@ function Home() {
         {listening ? "🎤 Listening..." : "🛑 Not Listening"}
       </p>
 
-             {/* Test buttons */}
-      {/*<div className="mt-4 flex gap-2">
-         <button
-           className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
-           onClick={() => speak("Hello! This is a test of the voice system.")}
-         >
-           Test Voice
-         </button>
-         <button
-           className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition"
-           onClick={resetRecognition}
-         >
-           Restart Recognition
-         </button>
-         <button
-           className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
-           onClick={() => {
-             stopRecognition();
-             console.log("Recognition manually stopped");
-           }}
-         >
-           Stop Recognition
-         </button>
-       </div>*/}
+      {/* Status indicator */}
+      <div className="mt-2 text-xs text-gray-400">
+        {!userInteracted && "Waiting for user interaction..."}
+        {userInteracted && !listening && "Ready to listen"}
+        {userInteracted && listening && `Listening for "${userData?.assistantName}"...`}
+      </div>
+
+      {/* Emergency controls - only show in development */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="absolute bottom-6 left-6 flex gap-2">
+          <button
+            className="px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition"
+            onClick={() => speak("Hello! This is a test of the voice system.")}
+          >
+            Test Voice
+          </button>
+          <button
+            className="px-3 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600 transition"
+            onClick={resetRecognition}
+          >
+            Reset
+          </button>
+        </div>
+      )}
     </div>
   );
 }
