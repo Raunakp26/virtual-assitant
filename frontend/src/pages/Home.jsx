@@ -59,7 +59,7 @@ function Home() {
       navigate("/signin");
     } catch (error) {
       setUserData(null);
-      console.log(error);
+      console.error("Logout error:", error);
     }
   };
 
@@ -329,7 +329,7 @@ function Home() {
 
     if (type === "youtube_search" || type === "youtube_play") {
       const query = encodeURIComponent(userInput);
-      window.open(`https://www.youtube.com/results?search_query=${query}`, "_blank");
+      window.open("https://www.youtube.com/results?search_query=${query}", "_blank");
     }
   };
 
@@ -400,7 +400,7 @@ function Home() {
           !isSpeakingRef.current && 
           isMountedRef.current) {
         console.log("Scheduling recognition restart after error");
-        setTimeout(safeRecognition, 3000);
+        setTimeout(safeRecognition, 2000); // Reduced to 2s for faster retries
       }
     };
 
@@ -437,7 +437,7 @@ function Home() {
         console.log("Fallback: restarting recognition");
         safeRecognition();
       }
-    }, 20000);
+    }, 15000); // Reduced for responsiveness
 
     setTimeout(() => {
       if (isMountedRef.current) {
@@ -512,4 +512,73 @@ function Home() {
       </div>
 
       <div className="w-[300px] h-[400px] flex flex-col items-center overflow-hidden rounded-3xl shadow-lg bg-white/10">
-        <img src={userData?.assistantImage} alt="Assistant" className="h-full w-full object-cover
+        <img src={userData?.assistantImage} alt="Assistant" className="h-full w-full object-cover" />
+      </div>
+
+      <h1 className="text-white text-2xl mt-6">
+        I'm <span className="font-bold">{userData?.assistantName}</span>
+      </h1>
+
+      <p className="mt-4 text-sm text-gray-300">
+        {listening ? "🎤 Listening..." : "🛑 Not Listening"}
+      </p>
+
+      <div className="mt-2 text-xs text-gray-400">
+        {!userInteracted && "Waiting for user interaction..."}
+        {userInteracted && !listening && "Ready to listen"}
+        {userInteracted && listening && `Listening for "${userData?.assistantName}"...`}
+      </div>
+
+      <div className="absolute bottom-6 left-6 flex flex-col gap-2">
+        <div className="flex gap-2">
+          <button
+            className="px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition"
+            onClick={() => {
+              setUserInteracted(true);
+              speak("Hello! This is a test of the voice system.");
+            }}
+          >
+            Test Voice
+          </button>
+          <button
+            className="px-3 py-1 bg-purple-500 text-white text-xs rounded hover:bg-purple-600 transition"
+            onClick={() => {
+              setUserInteracted(true);
+              speak("Current date is August 29, 2025");
+            }}
+          >
+            Test Date Speech
+          </button>
+        </div>
+        <div className="flex gap-2">
+          <button
+            className="px-3 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600 transition"
+            onClick={resetRecognition}
+          >
+            Reset Recognition
+          </button>
+          <button
+            className="px-3 py-1 bg-yellow-500 text-white text-xs rounded hover:bg-yellow-600 transition"
+            onClick={() => {
+              const voices = synth.getVoices();
+              console.log("=== CURRENT VOICE STATUS ===");
+              console.log("Voices available:", voices.length);
+              console.log("Synth speaking:", synth.speaking);
+              console.log("Synth pending:", synth.pending);
+              console.log("User interacted:", userInteracted);
+              console.log("Is speaking ref:", isSpeakingRef.current);
+              voices.forEach((voice, i) => {
+                if (i < 5) console.log(`${i}: ${voice.name} (${voice.lang})`);
+              });
+              console.log("=========================");
+            }}
+          >
+            Debug Info
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default Home;
