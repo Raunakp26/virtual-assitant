@@ -8,17 +8,17 @@ function Home() {
   const navigate = useNavigate();
 
   const [listening, setListening] = useState(false);
-  const [userInteracted, setUserInteracted] = useState(false);
-  const [toastMessage, setToastMessage] = useState(null); // Added for non-intrusive feedback
-  const [micPermissionDenied, setMicPermissionDenied] = useState(false); // Added for mic permission UI
+  const [userInteracted, setUserInteracted] = useState(process.env.NODE_ENV === 'development');
+  const [toastMessage, setToastMessage] = useState(null);
+  const [micPermissionDenied, setMicPermissionDenied] = useState(false);
   const isSpeakingRef = useRef(false);
   const recognitionRef = useRef(null);
   const isRecognizingRef = useRef(false);
   const isMountedRef = useRef(true);
   const synth = window.speechSynthesis;
 
-  // Track user interaction for autoplay policy compliance
   useEffect(() => {
+    if (userInteracted) return;
     const handleUserInteraction = () => {
       setUserInteracted(true);
       console.log("User interaction detected - speech enabled");
@@ -33,11 +33,10 @@ function Home() {
       document.removeEventListener('keydown', handleUserInteraction);
       document.removeEventListener('touchstart', handleUserInteraction);
     };
-  }, []);
+  }, [userInteracted]);
 
-  // Function to check and log available voices
   const checkVoices = () => {
-    const voices = window.speechSynthesis.getVoices();
+    const voices = synth.getVoices();
     console.log("=== AVAILABLE VOICES ===");
     voices.forEach((voice, index) => {
       console.log(`${index}: ${voice.name} (${voice.lang}) - Default: ${voice.default}`);
@@ -45,12 +44,11 @@ function Home() {
     console.log("========================");
   };
 
-  // Initialize voices when component mounts
   useEffect(() => {
-    if (window.speechSynthesis.getVoices().length > 0) {
+    if (synth.getVoices().length > 0) {
       checkVoices();
     } else {
-      window.speechSynthesis.onvoiceschanged = checkVoices;
+      synth.onvoiceschanged = checkVoices;
     }
   }, []);
 
@@ -87,12 +85,12 @@ function Home() {
           if (recognitionRef.current && !isRecognizingRef.current) {
             recognitionRef.current.start();
             console.log("Recognition start requested");
-            setMicPermissionDenied(false); // Reset permission denied state
+            setMicPermissionDenied(false);
           }
         })
         .catch((error) => {
           console.error("Microphone permission denied:", error);
-          setMicPermissionDenied(true); // Show permission denied UI
+          setMicPermissionDenied(true);
         });
     } catch (error) {
       if (error.name !== "InvalidStateError") {
@@ -133,66 +131,66 @@ function Home() {
       pending: synth.pending,
       paused: synth.paused
     });
-    
+
     if (!userInteracted) {
       console.log("User interaction required for speech");
-      setToastMessage(`Assistant says: ${text}`); // Use toast instead of alert
-      setTimeout(() => setToastMessage(null), 5000); // Hide after 5 seconds
+      setToastMessage(`Assistant: ${text}`);
+      setTimeout(() => setToastMessage(null), 7000);
       return;
     }
 
     if (!('speechSynthesis' in window)) {
       console.error("Speech synthesis not supported");
-      setToastMessage(`Assistant says: ${text}`);
-      setTimeout(() => setToastMessage(null), 5000);
+      setToastMessage("Speech synthesis not supported in this browser.");
+      setTimeout(() => setToastMessage(null), 7000);
       return;
     }
 
-    const attemptSpeak = (attempts = 3, delay = 1000) => {
-      const voices = window.speechSynthesis.getVoices();
-      console.log("Voices at speak attempt:", voices.map(v => `${v.name} (${v.lang})`));
+    const attemptSpeak = (attempts = 2, delay = 1000) => {
+      const voices = synth.getVoices();
       if (voices.length > 0) {
-        speakWithVoice();
+        performSpeak(voices);
       } else if (attempts > 0) {
         console.log(`No voices loaded, retrying (${attempts} attempts left)...`);
+        synth.onvoiceschanged = () => {
+          const voices = synth.getVoices();
+          if (voices.length > 0) {
+            console.log("Voices loaded, proceeding with speech");
+            performSpeak(voices);
+            synth.onvoiceschanged = null;
+          }
+        };
         setTimeout(() => attemptSpeak(attempts - 1, delay * 2), delay);
       } else {
         console.error("No voices available after retries");
-        setToastMessage(`Assistant says: ${text}`);
-        setTimeout(() => setToastMessage(null), 5000);
+        setToastMessage(`Assistant: ${text}`);
+        setTimeout(() => setToastMessage(null), 7000);
       }
     };
 
-    const speakWithVoice = () => {
+    const performSpeak = (voices) => {
       try {
         if (synth.speaking || synth.pending) {
           synth.cancel();
           console.log("Canceled existing speech");
-          setTimeout(() => performSpeak(), 200);
+          setTimeout(() => performSpeak(voices), 200);
           return;
         }
       } catch (error) {
         console.error("Error canceling speech:", error);
       }
-      
-      performSpeak();
-    };
 
-    const performSpeak = () => {
       let cleanText = text.trim();
       cleanText = cleanText.replace(/(\d{4})-(\d{2})-(\d{2})/g, (match, year, month, day) => {
         const months = ['January', 'February', 'March', 'April', 'May', 'June', 
                        'July', 'August', 'September', 'October', 'November', 'December'];
         return `${months[parseInt(month) - 1]} ${parseInt(day)}, ${year}`;
       });
-      
+
       console.log("Clean text for speech:", cleanText);
       
       const utterance = new SpeechSynthesisUtterance(cleanText);
       utterance.lang = "en-US";
-      
-      const voices = window.speechSynthesis.getVoices();
-      console.log("Available voices count:", voices.length);
       
       let selectedVoice = null;
       const voicePreferences = [
@@ -201,7 +199,6 @@ function Home() {
         (v) => v.default && v.lang.startsWith('en-'),
         (v) => v.lang.startsWith('en-US'),
         (v) => v.lang.startsWith('en-'),
-        (v) => v.localService === false,
         (v) => true
       ];
       
@@ -217,7 +214,7 @@ function Home() {
         console.warn("No suitable voice found, using default");
       }
 
-      utterance.rate = 0.8;
+      utterance.rate = 0.9;
       utterance.pitch = 1.0;
       utterance.volume = 1.0;
 
@@ -236,17 +233,16 @@ function Home() {
             console.log("Restarting recognition after speech");
             startRecognition();
           }
-        }, 1500);
+        }, 1000);
       };
       
       utterance.onerror = (event) => {
         console.error("❌ Speech error:", event.error);
-        console.error("Error details:", event);
         isSpeakingRef.current = false;
         
         if (event.error === 'not-allowed') {
           setToastMessage("Speech permission denied. Please allow speech in browser settings.");
-          setTimeout(() => setToastMessage(null), 5000);
+          setTimeout(() => setToastMessage(null), 7000);
         } else if (event.error === 'network') {
           console.log("Network error, trying with local voice...");
           const localVoice = voices.find(v => v.localService === true);
@@ -269,10 +265,6 @@ function Home() {
         }, 1000);
       };
 
-      utterance.onpause = () => console.log("Speech paused");
-      utterance.onresume = () => console.log("Speech resumed");
-      utterance.onmark = (event) => console.log("Speech mark:", event);
-
       try {
         console.log("🎤 Attempting to speak...");
         synth.speak(utterance);
@@ -281,16 +273,15 @@ function Home() {
           if (isSpeakingRef.current && !synth.speaking) {
             console.warn("Speech may have failed silently");
             isSpeakingRef.current = false;
-            setToastMessage(`Assistant says: ${text}`);
-            setTimeout(() => setToastMessage(null), 5000);
+            setToastMessage(`Assistant: ${text}`);
+            setTimeout(() => setToastMessage(null), 7000);
           }
         }, 3000);
-        
       } catch (error) {
         console.error("Error starting speech:", error);
         isSpeakingRef.current = false;
-        setToastMessage(`Assistant says: ${text}`);
-        setTimeout(() => setToastMessage(null), 5000);
+        setToastMessage(`Assistant: ${text}`);
+        setTimeout(() => setToastMessage(null), 7000);
       }
     };
 
@@ -353,7 +344,7 @@ function Home() {
     if (!SpeechRecognition) {
       console.error("Speech recognition not supported in this browser");
       setToastMessage("Speech recognition not supported. Please use Chrome or Firefox.");
-      setTimeout(() => setToastMessage(null), 5000);
+      setTimeout(() => setToastMessage(null), 7000);
       return;
     }
 
@@ -397,12 +388,8 @@ function Home() {
       
       if (event.error === 'no-speech') {
         console.log("No speech detected, will retry...");
-      } else if (event.error === 'audio-capture') {
-        console.error("No microphone found or permission denied");
-        setMicPermissionDenied(true);
-        return;
-      } else if (event.error === 'not-allowed') {
-        console.error("Microphone permission denied");
+      } else if (event.error === 'audio-capture' || event.error === 'not-allowed') {
+        console.error("Microphone error:", event.error);
         setMicPermissionDenied(true);
         return;
       }
@@ -450,7 +437,7 @@ function Home() {
         console.log("Fallback: restarting recognition");
         safeRecognition();
       }
-    }, 15000);
+    }, 20000);
 
     setTimeout(() => {
       if (isMountedRef.current) {
@@ -485,12 +472,11 @@ function Home() {
 
   return (
     <div className="w-full h-screen bg-gradient-to-t from-black to-[#030353] flex flex-col justify-center items-center relative">
-      {/* Enhanced user interaction prompt */}
       {!userInteracted && (
-        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-yellow-500 text-black px-6 py-3 rounded-lg shadow-lg animate-pulse flex items-center gap-2">
-          <span>Please click or tap to enable voice features</span>
+        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-yellow-500 text-black px-6 py-3 rounded-lg shadow-lg animate-pulse flex items-center gap-3">
+          <span>Click or tap to enable voice assistant</span>
           <button
-            className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+            className="px-4 py-1 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition"
             onClick={() => setUserInteracted(true)}
           >
             Enable Voice
@@ -498,21 +484,18 @@ function Home() {
         </div>
       )}
 
-      {/* Microphone permission denied prompt */}
       {micPermissionDenied && (
-        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg">
-          Microphone permission denied. Please allow microphone access in browser settings.
+        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg">
+          Microphone access denied. Please allow microphone in browser settings.
         </div>
       )}
 
-      {/* Toast message for assistant responses */}
       {toastMessage && (
-        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg">
+        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-6 py-3 rounded-lg shadow-lg max-w-md text-center">
           {toastMessage}
         </div>
       )}
 
-      {/* Buttons in top-right */}
       <div className="absolute top-6 right-6 flex gap-3">
         <button
           className="px-5 py-2 bg-white text-black font-semibold rounded-full shadow-md hover:bg-gray-200 transition"
@@ -528,79 +511,5 @@ function Home() {
         </button>
       </div>
 
-      {/* Assistant Card */}
       <div className="w-[300px] h-[400px] flex flex-col items-center overflow-hidden rounded-3xl shadow-lg bg-white/10">
-        <img src={userData?.assistantImage} alt="Assistant" className="h-full w-full object-cover" />
-      </div>
-
-      {/* Assistant Name */}
-      <h1 className="text-white text-2xl mt-6">
-        I'm <span className="font-bold">{userData?.assistantName}</span>
-      </h1>
-
-      {/* Listening status */}
-      <p className="mt-4 text-sm text-gray-300">
-        {listening ? "🎤 Listening..." : "🛑 Not Listening"}
-      </p>
-
-      {/* Status indicator */}
-      <div className="mt-2 text-xs text-gray-400">
-        {!userInteracted && "Waiting for user interaction..."}
-        {userInteracted && !listening && "Ready to listen"}
-        {userInteracted && listening && `Listening for "${userData?.assistantName}"...`}
-      </div>
-
-      {/* Debug controls */}
-      <div className="absolute bottom-6 left-6 flex flex-col gap-2">
-        <div className="flex gap-2">
-          <button
-            className="px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition"
-            onClick={() => {
-              setUserInteracted(true);
-              speak("Hello! This is a test of the voice system.");
-            }}
-          >
-            Test Voice
-          </button>
-          <button
-            className="px-3 py-1 bg-purple-500 text-white text-xs rounded hover:bg-purple-600 transition"
-            onClick={() => {
-              setUserInteracted(true);
-              speak("Current date is 2025-08-29");
-            }}
-          >
-            Test Date Speech
-          </button>
-        </div>
-        <div className="flex gap-2">
-          <button
-            className="px-3 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600 transition"
-            onClick={resetRecognition}
-          >
-            Reset Recognition
-          </button>
-          <button
-            className="px-3 py-1 bg-yellow-500 text-white text-xs rounded hover:bg-yellow-600 transition"
-            onClick={() => {
-              const voices = window.speechSynthesis.getVoices();
-              console.log("=== CURRENT VOICE STATUS ===");
-              console.log("Voices available:", voices.length);
-              console.log("Synth speaking:", synth.speaking);
-              console.log("Synth pending:", synth.pending);
-              console.log("User interacted:", userInteracted);
-              console.log("Is speaking ref:", isSpeakingRef.current);
-              voices.forEach((voice, i) => {
-                if (i < 5) console.log(`${i}: ${voice.name} (${voice.lang})`);
-              });
-              console.log("=========================");
-            }}
-          >
-            Debug Info
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export default Home;
+        <img src={userData?.assistantImage} alt="Assistant" className="h-full w-full object-cover
