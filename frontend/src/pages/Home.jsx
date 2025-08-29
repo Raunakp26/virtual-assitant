@@ -2,11 +2,10 @@ import React, { useEffect, useState, useRef } from "react";
 
 const Home = () => {
   const [isListening, setIsListening] = useState(false);
-  const [recognition, setRecognition] = useState(null);
+  const recognitionRef = useRef(null);
   const synthRef = useRef(window.speechSynthesis);
 
   useEffect(() => {
-    // Browser SpeechRecognition setup
     const SpeechRecognition =
       window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -19,30 +18,33 @@ const Home = () => {
     recog.continuous = true;
     recog.interimResults = false;
     recog.lang = "en-US";
+    recognitionRef.current = recog;
 
     recog.onstart = () => {
-      console.log("Recognition started safely ✅");
+      console.log("Recognition started ✅");
       setIsListening(true);
     };
 
     recog.onend = () => {
       console.log("Recognition ended ❌ restarting...");
-      if (isListening) recog.start(); // auto-restart if listening
+      if (isListening) setTimeout(() => recog.start(), 300); // thoda delay diya
     };
 
     recog.onerror = (event) => {
       console.error("Recognition error:", event.error);
+      if (event.error === "not-allowed") {
+        alert("Mic permission allow karo! 🎤");
+      }
     };
 
     recog.onresult = (event) => {
-      const transcript = event.results[event.results.length - 1][0].transcript.trim();
+      const transcript =
+        event.results[event.results.length - 1][0].transcript.trim();
       console.log("User said:", transcript);
       handleCommand(transcript);
     };
 
-    setRecognition(recog);
-
-    // ✅ Fix for "not-allowed"
+    // ek bar click karne par start hoga
     const handler = () => {
       recog.start();
       window.removeEventListener("click", handler);
@@ -53,23 +55,20 @@ const Home = () => {
       window.removeEventListener("click", handler);
       recog.stop();
     };
-  }, []);
+  }, [isListening]);
 
   const speak = (text) => {
     if (!text) return;
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.voice = synthRef.current.getVoices().find(
-      (voice) =>
-        voice.name.includes("David") || voice.lang === "en-US"
-    );
+    utterance.voice = synthRef.current
+      .getVoices()
+      .find((voice) => voice.lang === "en-US" || voice.name.includes("David"));
+    synthRef.current.cancel(); // pehle se bol raha hai to stop
     synthRef.current.speak(utterance);
     console.log("Speaking:", text);
   };
 
   const handleCommand = (command) => {
-    console.log("=== HANDLING COMMAND ===");
-    console.log("User Input:", command);
-
     let response = "Sorry, I didn’t understand that.";
 
     if (command.toLowerCase().includes("hello") || command.toLowerCase().includes("hi")) {
@@ -80,7 +79,6 @@ const Home = () => {
       response = "Today's date is " + new Date().toLocaleDateString();
     }
 
-    console.log("Response:", response);
     speak(response);
   };
 
