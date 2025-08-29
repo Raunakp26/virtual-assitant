@@ -1,4 +1,3 @@
-// src/pages/Home.jsx
 import React, { useContext, useEffect, useRef, useState } from "react";
 import { userDataContext } from "../context/UserContext";
 import { useNavigate } from "react-router-dom";
@@ -10,6 +9,8 @@ function Home() {
 
   const [listening, setListening] = useState(false);
   const [userInteracted, setUserInteracted] = useState(false);
+  const [toastMessage, setToastMessage] = useState(null); // Added for non-intrusive feedback
+  const [micPermissionDenied, setMicPermissionDenied] = useState(false); // Added for mic permission UI
   const isSpeakingRef = useRef(false);
   const recognitionRef = useRef(null);
   const isRecognizingRef = useRef(false);
@@ -23,7 +24,6 @@ function Home() {
       console.log("User interaction detected - speech enabled");
     };
 
-    // Listen for any user interaction
     document.addEventListener('click', handleUserInteraction, { once: true });
     document.addEventListener('keydown', handleUserInteraction, { once: true });
     document.addEventListener('touchstart', handleUserInteraction, { once: true });
@@ -47,11 +47,9 @@ function Home() {
 
   // Initialize voices when component mounts
   useEffect(() => {
-    // Check voices immediately if available
     if (window.speechSynthesis.getVoices().length > 0) {
       checkVoices();
     } else {
-      // Wait for voices to load
       window.speechSynthesis.onvoiceschanged = checkVoices;
     }
   }, []);
@@ -84,18 +82,17 @@ function Home() {
     }
 
     try {
-      // Request microphone permission first
       navigator.mediaDevices.getUserMedia({ audio: true })
         .then(() => {
           if (recognitionRef.current && !isRecognizingRef.current) {
             recognitionRef.current.start();
             console.log("Recognition start requested");
+            setMicPermissionDenied(false); // Reset permission denied state
           }
         })
         .catch((error) => {
           console.error("Microphone permission denied:", error);
-          // Show user-friendly message
-          alert("कृपया microphone permission दें voice assistant के लिए");
+          setMicPermissionDenied(true); // Show permission denied UI
         });
     } catch (error) {
       if (error.name !== "InvalidStateError") {
@@ -120,7 +117,6 @@ function Home() {
     stopRecognition();
     isRecognizingRef.current = false;
     setListening(false);
-    // Wait a bit before restarting
     setTimeout(() => {
       if (isMountedRef.current && !isSpeakingRef.current) {
         startRecognition();
@@ -138,29 +134,40 @@ function Home() {
       paused: synth.paused
     });
     
-    // Check if user has interacted first (for autoplay policy)
     if (!userInteracted) {
       console.log("User interaction required for speech");
-      // Show text instead or request interaction
-      alert(`Assistant says: ${text}`);
+      setToastMessage(`Assistant says: ${text}`); // Use toast instead of alert
+      setTimeout(() => setToastMessage(null), 5000); // Hide after 5 seconds
       return;
     }
 
-    // Check if speech synthesis is available
     if (!('speechSynthesis' in window)) {
       console.error("Speech synthesis not supported");
-      alert(`Assistant says: ${text}`);
+      setToastMessage(`Assistant says: ${text}`);
+      setTimeout(() => setToastMessage(null), 5000);
       return;
     }
 
-    // Wait for voices to be loaded
+    const attemptSpeak = (attempts = 3, delay = 1000) => {
+      const voices = window.speechSynthesis.getVoices();
+      console.log("Voices at speak attempt:", voices.map(v => `${v.name} (${v.lang})`));
+      if (voices.length > 0) {
+        speakWithVoice();
+      } else if (attempts > 0) {
+        console.log(`No voices loaded, retrying (${attempts} attempts left)...`);
+        setTimeout(() => attemptSpeak(attempts - 1, delay * 2), delay);
+      } else {
+        console.error("No voices available after retries");
+        setToastMessage(`Assistant says: ${text}`);
+        setTimeout(() => setToastMessage(null), 5000);
+      }
+    };
+
     const speakWithVoice = () => {
-      // Cancel any ongoing speech
       try {
         if (synth.speaking || synth.pending) {
           synth.cancel();
           console.log("Canceled existing speech");
-          // Wait a bit for cancellation to complete
           setTimeout(() => performSpeak(), 200);
           return;
         }
@@ -172,10 +179,7 @@ function Home() {
     };
 
     const performSpeak = () => {
-      // Clean and prepare text for speech
       let cleanText = text.trim();
-      
-      // Replace dates and numbers for better pronunciation
       cleanText = cleanText.replace(/(\d{4})-(\d{2})-(\d{2})/g, (match, year, month, day) => {
         const months = ['January', 'February', 'March', 'April', 'May', 'June', 
                        'July', 'August', 'September', 'October', 'November', 'December'];
@@ -187,22 +191,18 @@ function Home() {
       const utterance = new SpeechSynthesisUtterance(cleanText);
       utterance.lang = "en-US";
       
-      // Get available voices
       const voices = window.speechSynthesis.getVoices();
       console.log("Available voices count:", voices.length);
       
-      // Try to select the best English voice
       let selectedVoice = null;
-      
-      // Priority order for voice selection
       const voicePreferences = [
         (v) => v.name.includes('Google') && v.lang.startsWith('en-'),
         (v) => v.name.includes('Microsoft') && v.lang.startsWith('en-'),
         (v) => v.default && v.lang.startsWith('en-'),
         (v) => v.lang.startsWith('en-US'),
         (v) => v.lang.startsWith('en-'),
-        (v) => v.localService === false, // Prefer online voices
-        (v) => true // Any voice as fallback
+        (v) => v.localService === false,
+        (v) => true
       ];
       
       for (let preference of voicePreferences) {
@@ -217,8 +217,7 @@ function Home() {
         console.warn("No suitable voice found, using default");
       }
 
-      // Speech parameters
-      utterance.rate = 0.8;  // Slower for better clarity
+      utterance.rate = 0.8;
       utterance.pitch = 1.0;
       utterance.volume = 1.0;
 
@@ -232,7 +231,6 @@ function Home() {
       utterance.onend = () => {
         console.log("✅ Speech ended successfully");
         isSpeakingRef.current = false;
-        // Restart recognition after speech completes
         setTimeout(() => {
           if (!isRecognizingRef.current && isMountedRef.current) {
             console.log("Restarting recognition after speech");
@@ -246,12 +244,11 @@ function Home() {
         console.error("Error details:", event);
         isSpeakingRef.current = false;
         
-        // Handle different speech errors
         if (event.error === 'not-allowed') {
-          alert("Speech permission denied. कृपया browser settings में speech को allow करें");
+          setToastMessage("Speech permission denied. Please allow speech in browser settings.");
+          setTimeout(() => setToastMessage(null), 5000);
         } else if (event.error === 'network') {
           console.log("Network error, trying with local voice...");
-          // Try again with a local voice
           const localVoice = voices.find(v => v.localService === true);
           if (localVoice && utterance.voice !== localVoice) {
             utterance.voice = localVoice;
@@ -260,12 +257,10 @@ function Home() {
           }
         } else if (event.error === 'synthesis-failed') {
           console.log("Synthesis failed, trying simpler text...");
-          // Try with simpler text
           const simpleUtterance = new SpeechSynthesisUtterance("I have a response for you");
           synth.speak(simpleUtterance);
         }
         
-        // Always restart recognition after error
         setTimeout(() => {
           if (!isRecognizingRef.current && isMountedRef.current) {
             console.log("Restarting recognition after speech error");
@@ -274,7 +269,6 @@ function Home() {
         }, 1000);
       };
 
-      // Additional debugging
       utterance.onpause = () => console.log("Speech paused");
       utterance.onresume = () => console.log("Speech resumed");
       utterance.onmark = (event) => console.log("Speech mark:", event);
@@ -283,41 +277,24 @@ function Home() {
         console.log("🎤 Attempting to speak...");
         synth.speak(utterance);
         
-        // Fallback check - if speech doesn't start within 3 seconds, show alert
         setTimeout(() => {
           if (isSpeakingRef.current && !synth.speaking) {
             console.warn("Speech may have failed silently");
             isSpeakingRef.current = false;
-            alert(`Assistant says: ${text}`);
+            setToastMessage(`Assistant says: ${text}`);
+            setTimeout(() => setToastMessage(null), 5000);
           }
         }, 3000);
         
       } catch (error) {
         console.error("Error starting speech:", error);
         isSpeakingRef.current = false;
-        alert(`Assistant says: ${text}`);
+        setToastMessage(`Assistant says: ${text}`);
+        setTimeout(() => setToastMessage(null), 5000);
       }
     };
 
-    // Check if voices are loaded
-    const voices = window.speechSynthesis.getVoices();
-    if (voices.length > 0) {
-      speakWithVoice();
-    } else {
-      console.log("Waiting for voices to load...");
-      // Wait for voices to load
-      const voiceTimeout = setTimeout(() => {
-        console.warn("Voice loading timeout, proceeding anyway");
-        speakWithVoice();
-      }, 2000);
-      
-      window.speechSynthesis.onvoiceschanged = () => {
-        clearTimeout(voiceTimeout);
-        console.log("Voices loaded, proceeding with speech");
-        speakWithVoice();
-        window.speechSynthesis.onvoiceschanged = null; // Remove listener
-      };
-    }
+    attemptSpeak();
   };
 
   const handleCommand = (data, transcript) => {
@@ -330,17 +307,14 @@ function Home() {
     console.log("User Input:", userInput);
     console.log("========================");
 
-    // Check if response exists and is not empty
     if (!response || response.trim() === "") {
       console.error("No response to speak!");
       speak("Sorry, I couldn't process that request.");
       return;
     }
 
-    // Speak the response
     speak(response);
 
-    // Handle different command types
     if (type === "google_search") {
       const query = encodeURIComponent(userInput);
       window.open(`https://www.google.com/search?q=${query}`, "_blank");
@@ -369,18 +343,17 @@ function Home() {
   };
 
   useEffect(() => {
-    // Only initialize recognition once when component mounts
     if (recognitionRef.current) {
       console.log("Recognition already initialized, skipping");
       return;
     }
 
-    // Check if speech recognition is supported
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     
     if (!SpeechRecognition) {
       console.error("Speech recognition not supported in this browser");
-      alert("Speech recognition is not supported in this browser. कृपया Chrome या Firefox का उपयोग करें।");
+      setToastMessage("Speech recognition not supported. Please use Chrome or Firefox.");
+      setTimeout(() => setToastMessage(null), 5000);
       return;
     }
 
@@ -411,7 +384,6 @@ function Home() {
       isRecognizingRef.current = false;
       setListening(false);
 
-      // Only restart if not speaking and component is still mounted
       if (!isSpeakingRef.current && isMountedRef.current) {
         console.log("Scheduling recognition restart");
         setTimeout(safeRecognition, 2000);
@@ -423,20 +395,18 @@ function Home() {
       isRecognizingRef.current = false;
       setListening(false);
       
-      // Handle different recognition errors
       if (event.error === 'no-speech') {
         console.log("No speech detected, will retry...");
       } else if (event.error === 'audio-capture') {
         console.error("No microphone found or permission denied");
-        alert("Microphone नहीं मिला या permission नहीं मिली। कृपया microphone को allow करें।");
-        return; // Don't restart on audio-capture errors
+        setMicPermissionDenied(true);
+        return;
       } else if (event.error === 'not-allowed') {
         console.error("Microphone permission denied");
-        alert("Microphone permission denied. कृपया browser settings में microphone को allow करें।");
-        return; // Don't restart on permission errors
+        setMicPermissionDenied(true);
+        return;
       }
       
-      // Restart recognition for recoverable errors
       if (event.error !== "aborted" && 
           event.error !== "not-allowed" && 
           event.error !== "audio-capture" && 
@@ -475,7 +445,6 @@ function Home() {
       }
     };
 
-    // Fallback mechanism to ensure recognition keeps running
     const fallbackInterval = setInterval(() => {
       if (!isSpeakingRef.current && !isRecognizingRef.current && isMountedRef.current) {
         console.log("Fallback: restarting recognition");
@@ -483,7 +452,6 @@ function Home() {
       }
     }, 15000);
 
-    // Start recognition after a delay to ensure everything is initialized
     setTimeout(() => {
       if (isMountedRef.current) {
         safeRecognition();
@@ -498,7 +466,6 @@ function Home() {
       setListening(false);
       isRecognizingRef.current = false;
       
-      // Clean up recognition reference
       if (recognitionRef.current) {
         try {
           recognitionRef.current.abort();
@@ -510,7 +477,6 @@ function Home() {
     };
   }, []);
 
-  // Separate effect to handle userData changes
   useEffect(() => {
     if (userData?.assistantName) {
       console.log("User data updated, assistant name:", userData.assistantName);
@@ -519,10 +485,30 @@ function Home() {
 
   return (
     <div className="w-full h-screen bg-gradient-to-t from-black to-[#030353] flex flex-col justify-center items-center relative">
-      {/* User interaction prompt */}
+      {/* Enhanced user interaction prompt */}
       {!userInteracted && (
-        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-yellow-500 text-black px-4 py-2 rounded-lg shadow-lg">
-          Click anywhere to enable voice features
+        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-yellow-500 text-black px-6 py-3 rounded-lg shadow-lg animate-pulse flex items-center gap-2">
+          <span>Please click or tap to enable voice features</span>
+          <button
+            className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+            onClick={() => setUserInteracted(true)}
+          >
+            Enable Voice
+          </button>
+        </div>
+      )}
+
+      {/* Microphone permission denied prompt */}
+      {micPermissionDenied && (
+        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg">
+          Microphone permission denied. Please allow microphone access in browser settings.
+        </div>
+      )}
+
+      {/* Toast message for assistant responses */}
+      {toastMessage && (
+        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg">
+          {toastMessage}
         </div>
       )}
 
@@ -564,7 +550,7 @@ function Home() {
         {userInteracted && listening && `Listening for "${userData?.assistantName}"...`}
       </div>
 
-      {/* Debug controls - always show for testing */}
+      {/* Debug controls */}
       <div className="absolute bottom-6 left-6 flex flex-col gap-2">
         <div className="flex gap-2">
           <button
