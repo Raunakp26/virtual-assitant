@@ -50,6 +50,12 @@ function Home() {
     } else {
       synth.onvoiceschanged = checkVoices;
     }
+    // Initial speech test in development mode
+    if (process.env.NODE_ENV === 'development') {
+      setTimeout(() => {
+        speak("Welcome! I'm ready to assist you.");
+      }, 1000);
+    }
   }, []);
 
   const handleLogOut = async () => {
@@ -73,7 +79,7 @@ function Home() {
       console.log("Recognition already running, skipping start");
       return;
     }
-    
+
     if (isSpeakingRef.current) {
       console.log("Currently speaking, skipping recognition start");
       return;
@@ -146,7 +152,7 @@ function Home() {
       return;
     }
 
-    const attemptSpeak = (attempts = 2, delay = 1000) => {
+    const attemptSpeak = (attempts = 3, delay = 1000) => {
       const voices = synth.getVoices();
       if (voices.length > 0) {
         performSpeak(voices);
@@ -188,10 +194,10 @@ function Home() {
       });
 
       console.log("Clean text for speech:", cleanText);
-      
+
       const utterance = new SpeechSynthesisUtterance(cleanText);
       utterance.lang = "en-US";
-      
+
       let selectedVoice = null;
       const voicePreferences = [
         (v) => v.name.includes('Google') && v.lang.startsWith('en-'),
@@ -201,12 +207,12 @@ function Home() {
         (v) => v.lang.startsWith('en-'),
         (v) => true
       ];
-      
+
       for (let preference of voicePreferences) {
         selectedVoice = voices.find(preference);
         if (selectedVoice) break;
       }
-      
+
       if (selectedVoice) {
         utterance.voice = selectedVoice;
         console.log("Selected voice:", selectedVoice.name, selectedVoice.lang);
@@ -219,12 +225,12 @@ function Home() {
       utterance.volume = 1.0;
 
       isSpeakingRef.current = true;
-      
+
       utterance.onstart = () => {
         console.log("✅ Speech started successfully");
         console.log("Speaking text:", cleanText);
       };
-      
+
       utterance.onend = () => {
         console.log("✅ Speech ended successfully");
         isSpeakingRef.current = false;
@@ -235,11 +241,11 @@ function Home() {
           }
         }, 1000);
       };
-      
+
       utterance.onerror = (event) => {
         console.error("❌ Speech error:", event.error);
         isSpeakingRef.current = false;
-        
+
         if (event.error === 'not-allowed') {
           setToastMessage("Speech permission denied. Please allow speech in browser settings.");
           setTimeout(() => setToastMessage(null), 7000);
@@ -256,7 +262,7 @@ function Home() {
           const simpleUtterance = new SpeechSynthesisUtterance("I have a response for you");
           synth.speak(simpleUtterance);
         }
-        
+
         setTimeout(() => {
           if (!isRecognizingRef.current && isMountedRef.current) {
             console.log("Restarting recognition after speech error");
@@ -268,7 +274,7 @@ function Home() {
       try {
         console.log("🎤 Attempting to speak...");
         synth.speak(utterance);
-        
+
         setTimeout(() => {
           if (isSpeakingRef.current && !synth.speaking) {
             console.warn("Speech may have failed silently");
@@ -329,7 +335,7 @@ function Home() {
 
     if (type === "youtube_search" || type === "youtube_play") {
       const query = encodeURIComponent(userInput);
-      window.open("https://www.youtube.com/results?search_query=${query}", "_blank");
+      window.open(`https://www.youtube.com/results?search_query=${query}`, "_blank");
     }
   };
 
@@ -340,7 +346,7 @@ function Home() {
     }
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    
+
     if (!SpeechRecognition) {
       console.error("Speech recognition not supported in this browser");
       setToastMessage("Speech recognition not supported. Please use Chrome or Firefox.");
@@ -353,7 +359,7 @@ function Home() {
     recognition.lang = "en-US";
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
-    
+
     recognitionRef.current = recognition;
 
     const safeRecognition = () => {
@@ -377,7 +383,7 @@ function Home() {
 
       if (!isSpeakingRef.current && isMountedRef.current) {
         console.log("Scheduling recognition restart");
-        setTimeout(safeRecognition, 2000);
+        setTimeout(safeRecognition, 1500); // Faster retry
       }
     };
 
@@ -385,7 +391,7 @@ function Home() {
       console.warn("Recognition error:", event.error);
       isRecognizingRef.current = false;
       setListening(false);
-      
+
       if (event.error === 'no-speech') {
         console.log("No speech detected, will retry...");
       } else if (event.error === 'audio-capture' || event.error === 'not-allowed') {
@@ -393,14 +399,14 @@ function Home() {
         setMicPermissionDenied(true);
         return;
       }
-      
+
       if (event.error !== "aborted" && 
           event.error !== "not-allowed" && 
           event.error !== "audio-capture" && 
           !isSpeakingRef.current && 
           isMountedRef.current) {
         console.log("Scheduling recognition restart after error");
-        setTimeout(safeRecognition, 2000); // Reduced to 2s for faster retries
+        setTimeout(safeRecognition, 1500); // Faster retry
       }
     };
 
@@ -437,7 +443,7 @@ function Home() {
         console.log("Fallback: restarting recognition");
         safeRecognition();
       }
-    }, 15000); // Reduced for responsiveness
+    }, 10000); // Reduced for responsiveness
 
     setTimeout(() => {
       if (isMountedRef.current) {
@@ -452,7 +458,7 @@ function Home() {
       stopRecognition();
       setListening(false);
       isRecognizingRef.current = false;
-      
+
       if (recognitionRef.current) {
         try {
           recognitionRef.current.abort();
@@ -477,7 +483,10 @@ function Home() {
           <span>Click or tap to enable voice assistant</span>
           <button
             className="px-4 py-1 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition"
-            onClick={() => setUserInteracted(true)}
+            onClick={() => {
+              setUserInteracted(true);
+              speak("Voice assistant enabled!");
+            }}
           >
             Enable Voice
           </button>
@@ -574,6 +583,15 @@ function Home() {
             }}
           >
             Debug Info
+          </button>
+          <button
+            className="px-3 py-1 bg-orange-500 text-white text-xs rounded hover:bg-orange-600 transition"
+            onClick={() => {
+              setUserInteracted(true);
+              speak("Forced speech test to ensure audio works!");
+            }}
+          >
+            Force Speak
           </button>
         </div>
       </div>
