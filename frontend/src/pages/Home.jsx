@@ -181,24 +181,24 @@ function Home() {
     }
 
     if (type === "calculator_open") {
-      window.open("https://www.google.com/search?q=calculator", "_blank");
+      window.open(`https://www.google.com/search?q=calculator`, "_blank");
     }
 
     if (type === "instagram_open") {
-      window.open("https://www.instagram.com/", "_blank");
+      window.open(`https://www.instagram.com/`, "_blank");
     }
 
     if (type === "facebook_open") {
-      window.open("https://www.facebook.com/", "_blank");
+      window.open(`https://www.facebook.com/`, "_blank");
     }
 
     if (type === "weather-show") {
-      window.open("https://www.google.com/search?q=weather", "_blank");
+      window.open(`https://www.google.com/search?q=weather`, "_blank");
     }
 
     if (type === "youtube_search" || type === "youtube_play") {
       const query = encodeURIComponent(userInput);
-      window.open(https://www.youtube.com/results?search_query=${query}, "_blank");
+      window.open(`https://www.youtube.com/results?search_query=${query}`, "_blank");
     }
   };
 
