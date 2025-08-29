@@ -22,6 +22,7 @@ function Home() {
     const handleUserInteraction = () => {
       setUserInteracted(true);
       console.log("User interaction detected - speech enabled");
+      speak("Voice assistant enabled!");
     };
 
     document.addEventListener('click', handleUserInteraction, { once: true });
@@ -50,12 +51,11 @@ function Home() {
     } else {
       synth.onvoiceschanged = checkVoices;
     }
-    // Initial speech test in development mode
-    if (process.env.NODE_ENV === 'development') {
-      setTimeout(() => {
-        speak("Welcome! I'm ready to assist you.");
-      }, 1000);
-    }
+    // Initial speech test
+    setTimeout(() => {
+      setUserInteracted(true); // Temporary force for testing
+      speak("Welcome! I'm ready to assist you.");
+    }, 1000);
   }, []);
 
   const handleLogOut = async () => {
@@ -383,7 +383,7 @@ function Home() {
 
       if (!isSpeakingRef.current && isMountedRef.current) {
         console.log("Scheduling recognition restart");
-        setTimeout(safeRecognition, 1500); // Faster retry
+        setTimeout(safeRecognition, 1500);
       }
     };
 
@@ -406,7 +406,7 @@ function Home() {
           !isSpeakingRef.current && 
           isMountedRef.current) {
         console.log("Scheduling recognition restart after error");
-        setTimeout(safeRecognition, 1500); // Faster retry
+        setTimeout(safeRecognition, 1500);
       }
     };
 
@@ -443,7 +443,7 @@ function Home() {
         console.log("Fallback: restarting recognition");
         safeRecognition();
       }
-    }, 10000); // Reduced for responsiveness
+    }, 10000);
 
     setTimeout(() => {
       if (isMountedRef.current) {
