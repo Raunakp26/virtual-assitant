@@ -178,7 +178,7 @@ function Home() {
     if (type === "google_search") {
       const query = encodeURIComponent(userInput);
    window.open(`https://www.google.com/search?q=${query}`, "_blank");
-
+    }
 
     if (type === "calculator_open") {
       window.open("https://www.google.com/search?q=calculator", "_blank");
