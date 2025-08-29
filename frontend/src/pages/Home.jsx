@@ -130,6 +130,13 @@ function Home() {
 
   const speak = (text) => {
     console.log("Speaking:", text);
+    console.log("User interacted:", userInteracted);
+    console.log("Speech synthesis available:", 'speechSynthesis' in window);
+    console.log("Current synth state:", {
+      speaking: synth.speaking,
+      pending: synth.pending,
+      paused: synth.paused
+    });
     
     // Check if user has interacted first (for autoplay policy)
     if (!userInteracted) {
@@ -145,76 +152,171 @@ function Home() {
       alert(`Assistant says: ${text}`);
       return;
     }
-    
-    // Cancel any ongoing speech
-    try {
-      synth.cancel();
-    } catch (error) {
-      console.error("Error canceling speech:", error);
-    }
-    
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "en-US";
-    
-    // Try to select an English voice
-    const voices = window.speechSynthesis.getVoices();
-    const englishVoice = voices.find((v) => v.lang.startsWith("en-") && v.default) || 
-                        voices.find((v) => v.lang.startsWith("en-")) ||
-                        voices[0];
-    
-    if (englishVoice) {
-      utterance.voice = englishVoice;
-      console.log("Using voice:", englishVoice.name);
-    }
 
-    utterance.rate = 0.9;
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
-
-    isSpeakingRef.current = true;
-    
-    utterance.onstart = () => {
-      console.log("Speech started");
-    };
-    
-    utterance.onend = () => {
-      console.log("Speech ended");
-      isSpeakingRef.current = false;
-      // Restart recognition after speech completes
-      setTimeout(() => {
-        if (!isRecognizingRef.current && isMountedRef.current) {
-          console.log("Restarting recognition after speech");
-          startRecognition();
+    // Wait for voices to be loaded
+    const speakWithVoice = () => {
+      // Cancel any ongoing speech
+      try {
+        if (synth.speaking || synth.pending) {
+          synth.cancel();
+          console.log("Canceled existing speech");
+          // Wait a bit for cancellation to complete
+          setTimeout(() => performSpeak(), 200);
+          return;
         }
-      }, 1500);
-    };
-    
-    utterance.onerror = (event) => {
-      console.error("Speech error:", event.error);
-      isSpeakingRef.current = false;
-      
-      // Handle different speech errors
-      if (event.error === 'not-allowed') {
-        alert("Speech permission denied. कृपया browser settings में speech को allow करें");
-      } else if (event.error === 'network') {
-        console.log("Network error, trying again...");
+      } catch (error) {
+        console.error("Error canceling speech:", error);
       }
       
-      // Always restart recognition after error
-      setTimeout(() => {
-        if (!isRecognizingRef.current && isMountedRef.current) {
-          console.log("Restarting recognition after speech error");
-          startRecognition();
-        }
-      }, 1000);
+      performSpeak();
     };
 
-    try {
-      synth.speak(utterance);
-    } catch (error) {
-      console.error("Error starting speech:", error);
-      isSpeakingRef.current = false;
-      alert(`Assistant says: ${text}`);
+    const performSpeak = () => {
+      // Clean and prepare text for speech
+      let cleanText = text.trim();
+      
+      // Replace dates and numbers for better pronunciation
+      cleanText = cleanText.replace(/(\d{4})-(\d{2})-(\d{2})/g, (match, year, month, day) => {
+        const months = ['January', 'February', 'March', 'April', 'May', 'June', 
+                       'July', 'August', 'September', 'October', 'November', 'December'];
+        return `${months[parseInt(month) - 1]} ${parseInt(day)}, ${year}`;
+      });
+      
+      console.log("Clean text for speech:", cleanText);
+      
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.lang = "en-US";
+      
+      // Get available voices
+      const voices = window.speechSynthesis.getVoices();
+      console.log("Available voices count:", voices.length);
+      
+      // Try to select the best English voice
+      let selectedVoice = null;
+      
+      // Priority order for voice selection
+      const voicePreferences = [
+        (v) => v.name.includes('Google') && v.lang.startsWith('en-'),
+        (v) => v.name.includes('Microsoft') && v.lang.startsWith('en-'),
+        (v) => v.default && v.lang.startsWith('en-'),
+        (v) => v.lang.startsWith('en-US'),
+        (v) => v.lang.startsWith('en-'),
+        (v) => v.localService === false, // Prefer online voices
+        (v) => true // Any voice as fallback
+      ];
+      
+      for (let preference of voicePreferences) {
+        selectedVoice = voices.find(preference);
+        if (selectedVoice) break;
+      }
+      
+      if (selectedVoice) {
+        utterance.voice = selectedVoice;
+        console.log("Selected voice:", selectedVoice.name, selectedVoice.lang);
+      } else {
+        console.warn("No suitable voice found, using default");
+      }
+
+      // Speech parameters
+      utterance.rate = 0.8;  // Slower for better clarity
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
+
+      isSpeakingRef.current = true;
+      
+      utterance.onstart = () => {
+        console.log("✅ Speech started successfully");
+        console.log("Speaking text:", cleanText);
+      };
+      
+      utterance.onend = () => {
+        console.log("✅ Speech ended successfully");
+        isSpeakingRef.current = false;
+        // Restart recognition after speech completes
+        setTimeout(() => {
+          if (!isRecognizingRef.current && isMountedRef.current) {
+            console.log("Restarting recognition after speech");
+            startRecognition();
+          }
+        }, 1500);
+      };
+      
+      utterance.onerror = (event) => {
+        console.error("❌ Speech error:", event.error);
+        console.error("Error details:", event);
+        isSpeakingRef.current = false;
+        
+        // Handle different speech errors
+        if (event.error === 'not-allowed') {
+          alert("Speech permission denied. कृपया browser settings में speech को allow करें");
+        } else if (event.error === 'network') {
+          console.log("Network error, trying with local voice...");
+          // Try again with a local voice
+          const localVoice = voices.find(v => v.localService === true);
+          if (localVoice && utterance.voice !== localVoice) {
+            utterance.voice = localVoice;
+            setTimeout(() => synth.speak(utterance), 500);
+            return;
+          }
+        } else if (event.error === 'synthesis-failed') {
+          console.log("Synthesis failed, trying simpler text...");
+          // Try with simpler text
+          const simpleUtterance = new SpeechSynthesisUtterance("I have a response for you");
+          synth.speak(simpleUtterance);
+        }
+        
+        // Always restart recognition after error
+        setTimeout(() => {
+          if (!isRecognizingRef.current && isMountedRef.current) {
+            console.log("Restarting recognition after speech error");
+            startRecognition();
+          }
+        }, 1000);
+      };
+
+      // Additional debugging
+      utterance.onpause = () => console.log("Speech paused");
+      utterance.onresume = () => console.log("Speech resumed");
+      utterance.onmark = (event) => console.log("Speech mark:", event);
+
+      try {
+        console.log("🎤 Attempting to speak...");
+        synth.speak(utterance);
+        
+        // Fallback check - if speech doesn't start within 3 seconds, show alert
+        setTimeout(() => {
+          if (isSpeakingRef.current && !synth.speaking) {
+            console.warn("Speech may have failed silently");
+            isSpeakingRef.current = false;
+            alert(`Assistant says: ${text}`);
+          }
+        }, 3000);
+        
+      } catch (error) {
+        console.error("Error starting speech:", error);
+        isSpeakingRef.current = false;
+        alert(`Assistant says: ${text}`);
+      }
+    };
+
+    // Check if voices are loaded
+    const voices = window.speechSynthesis.getVoices();
+    if (voices.length > 0) {
+      speakWithVoice();
+    } else {
+      console.log("Waiting for voices to load...");
+      // Wait for voices to load
+      const voiceTimeout = setTimeout(() => {
+        console.warn("Voice loading timeout, proceeding anyway");
+        speakWithVoice();
+      }, 2000);
+      
+      window.speechSynthesis.onvoiceschanged = () => {
+        clearTimeout(voiceTimeout);
+        console.log("Voices loaded, proceeding with speech");
+        speakWithVoice();
+        window.speechSynthesis.onvoiceschanged = null; // Remove listener
+      };
     }
   };
 
@@ -462,23 +564,55 @@ function Home() {
         {userInteracted && listening && `Listening for "${userData?.assistantName}"...`}
       </div>
 
-      {/* Emergency controls - only show in development */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="absolute bottom-6 left-6 flex gap-2">
+      {/* Debug controls - always show for testing */}
+      <div className="absolute bottom-6 left-6 flex flex-col gap-2">
+        <div className="flex gap-2">
           <button
             className="px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition"
-            onClick={() => speak("Hello! This is a test of the voice system.")}
+            onClick={() => {
+              setUserInteracted(true);
+              speak("Hello! This is a test of the voice system.");
+            }}
           >
             Test Voice
           </button>
           <button
+            className="px-3 py-1 bg-purple-500 text-white text-xs rounded hover:bg-purple-600 transition"
+            onClick={() => {
+              setUserInteracted(true);
+              speak("Current date is 2025-08-29");
+            }}
+          >
+            Test Date Speech
+          </button>
+        </div>
+        <div className="flex gap-2">
+          <button
             className="px-3 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600 transition"
             onClick={resetRecognition}
           >
-            Reset
+            Reset Recognition
+          </button>
+          <button
+            className="px-3 py-1 bg-yellow-500 text-white text-xs rounded hover:bg-yellow-600 transition"
+            onClick={() => {
+              const voices = window.speechSynthesis.getVoices();
+              console.log("=== CURRENT VOICE STATUS ===");
+              console.log("Voices available:", voices.length);
+              console.log("Synth speaking:", synth.speaking);
+              console.log("Synth pending:", synth.pending);
+              console.log("User interacted:", userInteracted);
+              console.log("Is speaking ref:", isSpeakingRef.current);
+              voices.forEach((voice, i) => {
+                if (i < 5) console.log(`${i}: ${voice.name} (${voice.lang})`);
+              });
+              console.log("=========================");
+            }}
+          >
+            Debug Info
           </button>
         </div>
-      )}
+      </div>
     </div>
   );
 }
