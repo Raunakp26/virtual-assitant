@@ -20,7 +20,7 @@ function Home() {
     const voices = window.speechSynthesis.getVoices();
     console.log("=== AVAILABLE VOICES ===");
     voices.forEach((voice, index) => {
-      console.log(${index}: ${voice.name} (${voice.lang}) - Default: ${voice.default});
+      console.log(`${index}: ${voice.name} (${voice.lang}) - Default: ${voice.default}`);
     });
     console.log("========================");
   };
@@ -38,7 +38,7 @@ function Home() {
 
   const handleLogOut = async () => {
     try {
-  await axios.get(${serverUrl}/api/auth/logout, { withCredentials: true });
+  await axios.get(`${serverUrl}/api/auth/logout`, { withCredentials: true });
 
       setUserData(null);
       navigate("/signin");
@@ -177,7 +177,7 @@ function Home() {
     // Handle different command types
     if (type === "google_search") {
       const query = encodeURIComponent(userInput);
-   window.open(https://www.google.com/search?q=${query}, "_blank");
+   window.open(`https://www.google.com/search?q=${query}`, "_blank");
     }
 
     if (type === "calculator_open") {
@@ -198,7 +198,7 @@ function Home() {
 
     if (type === "youtube_search" || type === "youtube_play") {
       const query = encodeURIComponent(userInput);
-      window.open(https://www.youtube.com/results?search_query=${query}, "_blank");
+      window.open(`https://www.youtube.com/results?search_query=${query}`, "_blank");
     }
   };
 
