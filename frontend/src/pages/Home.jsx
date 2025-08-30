@@ -143,60 +143,57 @@ function Home() {
     synth.speak(utterance);
   };
 
-  // --- START OF CORRECTED HANDLECOMMAND FUNCTION ---
-  const handleCommand = (data) => {
-    const { type, response, query, url } = data;
+  const handleCommand = (data) => {
+    const { type, response, query, url } = data;
 
-    console.log("=== HANDLING COMMAND ===");
-    console.log("Type:", type);
-    console.log("Response:", response);
-    console.log("Query:", query);
-    console.log("URL:", url);
-    console.log("========================");
+    console.log("=== HANDLING COMMAND ===");
+    console.log("Type:", type);
+    console.log("Response:", response);
+    console.log("Query:", query);
+    console.log("URL:", url);
+    console.log("========================");
 
-    if (!response || response.trim() === "") {
-      console.error("No response to speak!");
-      return;
-    }
+    if (!response || response.trim() === "") {
+      console.error("No response to speak!");
+      return;
+    }
 
-    // Speak the response first, as it's common to all commands
-    speak(response);
+    // Speak the response first, as it's common to all commands
+    speak(response);
 
-    // Use a switch statement for better organization
-    switch (type) {
-      case "open_website": {
-        if (url) {
-          const fullUrl = url.startsWith("http") ? url : `https://${url}`;
-          window.open(fullUrl, "_blank");
-        }
-        break;
-      }
-      case "google_search":
-      case "youtube_search": {
-        if (query) {
-          const encodedQuery = encodeURIComponent(query);
-          const searchUrl = type === "google_search"
-            ? `https://www.google.com/search?q=${encodedQuery}`
-            : `https://www.youtube.com/results?search_query=${encodedQuery}`;
-          window.open(searchUrl, "_blank");
-        }
-        break;
-      }
-      case "general_knowledge":
-      case "get_time":
-      case "get_date":
-      case "get_day":
-      case "get_month":
-      case "general":
-        // No action needed for these types, as the response is already handled by speak(response)
-        break;
-      default:
-        console.warn("Unknown command type:", type);
-        break;
-    }
-  };
-  // --- END OF CORRECTED HANDLECOMMAND FUNCTION ---
-
+    // Use a switch statement for better organization and to fix the logic
+    switch (type) {
+      case "open_website": {
+        if (url) {
+          const fullUrl = url.startsWith("http") ? url : `https://${url}`;
+          window.open(fullUrl, "_blank");
+        }
+        break;
+      }
+      case "google_search":
+      case "youtube_search": {
+        if (query) {
+          const encodedQuery = encodeURIComponent(query);
+          const searchUrl = type === "google_search"
+            ? `https://www.google.com/search?q=${encodedQuery}`
+            : `https://www.youtube.com/results?search_query=${encodedQuery}`;
+          window.open(searchUrl, "_blank");
+        }
+        break;
+      }
+      case "general_knowledge":
+      case "get_time":
+      case "get_date":
+      case "get_day":
+      case "get_month":
+      case "general":
+        // No action needed for these types, as the response is already handled by speak(response)
+        break;
+      default:
+        console.warn("Unknown command type:", type);
+        break;
+    }
+  };
 
   const safeRecognition = () => {
     if (!isSpeakingRef.current && !isRecognizingRef.current) {
@@ -352,32 +349,6 @@ function Home() {
         {listening ? "🎤 Listening..." : "🛑 Not Listening"}
       </p>
 
-      {/* You can re-enable these if you need them for debugging */}
-      {/*
-      <div className="mt-4 flex gap-2">
-        <button
-          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
-          onClick={() => speak("Hello! This is a test of the voice system.")}
-        >
-          Test Voice
-        </button>
-        <button
-          className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition"
-          onClick={resetRecognition}
-        >
-          Restart Recognition
-        </button>
-        <button
-          className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
-          onClick={() => {
-            stopRecognition();
-            console.log("Recognition manually stopped");
-          }}
-        >
-          Stop Recognition
-        </button>
-      </div>
-      */}
     </div>
   );
 }
