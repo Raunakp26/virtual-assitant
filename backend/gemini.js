@@ -34,12 +34,12 @@ const geminiResponse = async (command, assistantName, userName) => {
         query: query
       };
     } else if (lowerCaseCommand.includes("open youtube") || lowerCaseCommand.includes("search youtube") || lowerCaseCommand.includes("play on youtube") || lowerCaseCommand.includes("play song")) {
+      // Polished: Use a single regex to remove all possible phrases at once
       const query = lowerCaseCommand
-        .replace("open youtube", "")
-        .replace("search youtube", "")
-        .replace("play on youtube", "")
-        .replace("play song", "")
+        .replace(/(open|search|play on|play) youtube/g, "")
+        .replace(/for\s+/g, "") // Also remove the word "for" if present
         .trim();
+        
       responseData = {
         type: 'youtube_search',
         response: `Searching YouTube for ${query}.`,
@@ -49,25 +49,25 @@ const geminiResponse = async (command, assistantName, userName) => {
       responseData = {
         type: 'open_website',
         response: "Opening Facebook for you.",
-        query: "https://www.facebook.com"
+        url: "https://www.facebook.com"
       };
     } else if (lowerCaseCommand.includes("open instagram")) {
       responseData = {
         type: 'open_website',
         response: "Opening Instagram for you.",
-        query: "https://www.instagram.com"
+        url: "https://www.instagram.com"
       };
     } else if (lowerCaseCommand.includes("open calculator")) {
       responseData = {
         type: 'open_website',
         response: "Opening the calculator.",
-        query: "https://www.google.com/search?q=calculator"
+        url: "https://www.google.com/search?q=calculator"
       };
     } else if (lowerCaseCommand.includes("show weather") || lowerCaseCommand.includes("check weather")) {
       responseData = {
         type: 'open_website',
         response: "Showing you the current weather.",
-        query: "https://www.google.com/search?q=weather"
+        url: "https://www.google.com/search?q=weather"
       };
     }
 
