@@ -121,7 +121,7 @@ User request: "${command}"`;
 
     // Add the original user command and return the final response
     responseData.userInput = command;
-    return { data: responseData };
+    return  responseData ;
 
   } catch (error) {
     console.error("=== GEMINI ERROR ===");
