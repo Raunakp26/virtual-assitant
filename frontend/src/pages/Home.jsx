@@ -143,49 +143,60 @@ function Home() {
     synth.speak(utterance);
   };
 
-  const handleCommand = (data, transcript) => {
-    const { type, response } = data;
-    const userInput = data.userInput || transcript;
+  // --- START OF CORRECTED HANDLECOMMAND FUNCTION ---
+  const handleCommand = (data) => {
+    const { type, response, query, url } = data;
 
-    console.log("=== HANDLING COMMAND ===");
-    console.log("Type:", type);
-    console.log("Response:", response);
-    console.log("User Input:", userInput);
-    console.log("========================");
+    console.log("=== HANDLING COMMAND ===");
+    console.log("Type:", type);
+    console.log("Response:", response);
+    console.log("Query:", query);
+    console.log("URL:", url);
+    console.log("========================");
 
-    if (!response || response.trim() === "") {
-      console.error("No response to speak!");
-      return;
-    }
+    if (!response || response.trim() === "") {
+      console.error("No response to speak!");
+      return;
+    }
 
-    speak(response);
+    // Speak the response first, as it's common to all commands
+    speak(response);
 
-    if (type === "google_search") {
-      const query = encodeURIComponent(userInput);
-      window.open(`https://www.google.com/search?q=${query}`, "_blank");
-    }
+    // Use a switch statement for better organization
+    switch (type) {
+      case "open_website": {
+        if (url) {
+          const fullUrl = url.startsWith("http") ? url : `https://${url}`;
+          window.open(fullUrl, "_blank");
+        }
+        break;
+      }
+      case "google_search":
+      case "youtube_search": {
+        if (query) {
+          const encodedQuery = encodeURIComponent(query);
+          const searchUrl = type === "google_search"
+            ? `https://www.google.com/search?q=${encodedQuery}`
+            : `https://www.youtube.com/results?search_query=${encodedQuery}`;
+          window.open(searchUrl, "_blank");
+        }
+        break;
+      }
+      case "general_knowledge":
+      case "get_time":
+      case "get_date":
+      case "get_day":
+      case "get_month":
+      case "general":
+        // No action needed for these types, as the response is already handled by speak(response)
+        break;
+      default:
+        console.warn("Unknown command type:", type);
+        break;
+    }
+  };
+  // --- END OF CORRECTED HANDLECOMMAND FUNCTION ---
 
-    if (type === "calculator_open") {
-      window.open("https://www.google.com/search?q=calculator", "_blank");
-    }
-
-    if (type === "instagram_open") {
-      window.open("https://www.instagram.com/", "_blank");
-    }
-
-    if (type === "facebook_open") {
-      window.open("https://www.facebook.com/", "_blank");
-    }
-
-    if (type === "weather-show") {
-      window.open("https://www.google.com/search?q=weather", "_blank");
-    }
-
-    if (type === "youtube_search" || type === "youtube_play") {
-      const query = encodeURIComponent(userInput);
-      window.open(`https://www.youtube.com/results?search_query=${query}`, "_blank");
-    }
-  };
 
   const safeRecognition = () => {
     if (!isSpeakingRef.current && !isRecognizingRef.current) {
@@ -195,180 +206,180 @@ function Home() {
     }
   };
 
-  const fallbackIntervalRef = useRef(null);
+  const fallbackIntervalRef = useRef(null);
 
-  // New function to start the entire process
-  const startJarvis = () => {
-    // Check if recognition is already running to prevent duplicates
-    if (isRecognizingRef.current) {
-      console.log("Jarvis is already running.");
-      return;
-    }
+  // New function to start the entire process
+  const startJarvis = () => {
+    // Check if recognition is already running to prevent duplicates
+    if (isRecognizingRef.current) {
+      console.log("Jarvis is already running.");
+      return;
+    }
 
-    // Start recognition and speech
-    speak("Hello there! How can I help you today?");
-    safeRecognition();
+    // Start recognition and speech
+    speak("Hello there! How can I help you today?");
+    safeRecognition();
 
-    // Start the fallback interval
-    fallbackIntervalRef.current = setInterval(() => {
-      if (!isSpeakingRef.current && !isRecognizingRef.current && isMountedRef.current) {
-        console.log("Fallback: restarting recognition");
-        safeRecognition();
-      }
-    }, 15000);
-  };
+    // Start the fallback interval
+    fallbackIntervalRef.current = setInterval(() => {
+      if (!isSpeakingRef.current && !isRecognizingRef.current && isMountedRef.current) {
+        console.log("Fallback: restarting recognition");
+        safeRecognition();
+      }
+    }, 15000);
+  };
 
-  // Main Effect for initializing SpeechRecognition API
-  useEffect(() => {
-    if (recognitionRef.current) {
-      console.log("Recognition already initialized, skipping");
-      return;
-    }
+  // Main Effect for initializing SpeechRecognition API
+  useEffect(() => {
+    if (recognitionRef.current) {
+      console.log("Recognition already initialized, skipping");
+      return;
+    }
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
 
-    recognition.continuous = true;
-    recognition.lang = "en-US";
-    recognitionRef.current = recognition;
+    recognition.continuous = true;
+    recognition.lang = "en-US";
+    recognitionRef.current = recognition;
 
-    recognition.onstart = () => {
-      console.log("Recognition started");
-      isRecognizingRef.current = true;
-      setListening(true);
-    };
+    recognition.onstart = () => {
+      console.log("Recognition started");
+      isRecognizingRef.current = true;
+      setListening(true);
+    };
 
-    recognition.onend = () => {
-      console.log("Recognition ended");
-      isRecognizingRef.current = false;
-      setListening(false);
-      if (!isSpeakingRef.current && isMountedRef.current) {
-        console.log("Scheduling recognition restart");
-        setTimeout(safeRecognition, 2000);
-      }
-    };
+    recognition.onend = () => {
+      console.log("Recognition ended");
+      isRecognizingRef.current = false;
+      setListening(false);
+      if (!isSpeakingRef.current && isMountedRef.current) {
+        console.log("Scheduling recognition restart");
+        setTimeout(safeRecognition, 2000);
+      }
+    };
 
-    recognition.onerror = (event) => {
-      console.warn("Recognition error:", event.error);
-      isRecognizingRef.current = false;
-      setListening(false);
-      if (event.error !== "aborted" && !isSpeakingRef.current && isMountedRef.current) {
-        console.log("Scheduling recognition restart after error");
-        setTimeout(safeRecognition, 3000);
-      }
-    };
+    recognition.onerror = (event) => {
+      console.warn("Recognition error:", event.error);
+      isRecognizingRef.current = false;
+      setListening(false);
+      if (event.error !== "aborted" && !isSpeakingRef.current && isMountedRef.current) {
+        console.log("Scheduling recognition restart after error");
+        setTimeout(safeRecognition, 3000);
+      }
+    };
 
-    recognition.onresult = async (e) => {
-      const transcript = e.results[e.results.length - 1][0].transcript.trim();
-      console.log("Heard:", transcript);
-      if (userData?.assistantName && transcript.toLowerCase().includes(userData.assistantName.toLowerCase())) {
-        console.log("Assistant name detected, processing command...");
-        stopRecognition();
-        isRecognizingRef.current = false;
-        setListening(false);
-        try {
-          const data = await getGeminiResponse(transcript);
-          console.log("Assistant response:", data);
-          if (data?.response) {
-            console.log("Assistant says:", data.response);
-            handleCommand({ ...data, userInput: data.userInput || transcript }, transcript);
-          } else {
-            console.log("No response from assistant");
-            speak("I'm sorry, I couldn't understand that. Please try again.");
-          }
-        } catch (error) {
-          console.error("Error getting assistant response:", error);
-          speak("I'm sorry, there was an error processing your request. Please try again.");
-        }
-      }
-    };
+    recognition.onresult = async (e) => {
+      const transcript = e.results[e.results.length - 1][0].transcript.trim();
+      console.log("Heard:", transcript);
+      if (userData?.assistantName && transcript.toLowerCase().includes(userData.assistantName.toLowerCase())) {
+        console.log("Assistant name detected, processing command...");
+        stopRecognition();
+        isRecognizingRef.current = false;
+        setListening(false);
+        try {
+          const data = await getGeminiResponse(transcript);
+          console.log("Assistant response:", data);
+          if (data?.response) {
+            console.log("Assistant says:", data.response);
+            handleCommand({ ...data, userInput: data.userInput || transcript }, transcript);
+          } else {
+            console.log("No response from assistant");
+            speak("I'm sorry, I couldn't understand that. Please try again.");
+          }
+        } catch (error) {
+          console.error("Error getting assistant response:", error);
+          speak("I'm sorry, there was an error processing your request. Please try again.");
+        }
+      }
+    };
 
-    return () => {
-      console.log("Cleaning up recognition");
-      isMountedRef.current = false;
-      stopRecognition();
-      setListening(false);
-      isRecognizingRef.current = false;
-      // Clear the fallback interval on unmount
-      if (fallbackIntervalRef.current) {
-        clearInterval(fallbackIntervalRef.current);
-      }
-    };
-  }, []);
+    return () => {
+      console.log("Cleaning up recognition");
+      isMountedRef.current = false;
+      stopRecognition();
+      setListening(false);
+      isRecognizingRef.current = false;
+      // Clear the fallback interval on unmount
+      if (fallbackIntervalRef.current) {
+        clearInterval(fallbackIntervalRef.current);
+      }
+    };
+  }, []);
 
-  useEffect(() => {
-    if (userData?.assistantName) {
-      console.log("User data updated, assistant name:", userData.assistantName);
-    }
-  }, [userData]);
+  useEffect(() => {
+    if (userData?.assistantName) {
+      console.log("User data updated, assistant name:", userData.assistantName);
+    }
+  }, [userData]);
 
-  return (
-    <div className="w-full h-screen bg-gradient-to-t from-black to-[#030353] flex flex-col justify-center items-center relative">
-      <div className="absolute top-6 right-6 flex gap-3">
-        <button
-          className="px-5 py-2 bg-white text-black font-semibold rounded-full shadow-md hover:bg-gray-200 transition"
-          onClick={handleLogOut}
-        >
-          Log Out
-        </button>
-        <button
-          className="px-5 py-2 bg-white text-black font-semibold rounded-full shadow-md hover:bg-gray-200 transition"
-          onClick={() => navigate("/customize")}
-        >
-          Customize
-        </button>
-      </div>
+  return (
+    <div className="w-full h-screen bg-gradient-to-t from-black to-[#030353] flex flex-col justify-center items-center relative">
+      <div className="absolute top-6 right-6 flex gap-3">
+        <button
+          className="px-5 py-2 bg-white text-black font-semibold rounded-full shadow-md hover:bg-gray-200 transition"
+          onClick={handleLogOut}
+        >
+          Log Out
+        </button>
+        <button
+          className="px-5 py-2 bg-white text-black font-semibold rounded-full shadow-md hover:bg-gray-200 transition"
+          onClick={() => navigate("/customize")}
+        >
+          Customize
+        </button>
+      </div>
 
-      {/* NEW: Start Button */}
-      {!(listening || isSpeakingRef.current) && (
-        <button
-          className="px-8 py-4 mb-8 bg-blue-600 text-white font-bold text-xl rounded-full shadow-xl hover:bg-blue-700 transition transform hover:scale-105"
-          onClick={startJarvis}
-        >
-          Start Jarvis
-        </button>
-      )}
+      {/* NEW: Start Button */}
+      {!(listening || isSpeakingRef.current) && (
+        <button
+          className="px-8 py-4 mb-8 bg-blue-600 text-white font-bold text-xl rounded-full shadow-xl hover:bg-blue-700 transition transform hover:scale-105"
+          onClick={startJarvis}
+        >
+          Start Jarvis
+        </button>
+      )}
 
-      <div className="w-[300px] h-[400px] flex flex-col items-center overflow-hidden rounded-3xl shadow-lg bg-white/10">
-        <img src={userData?.assistantImage} alt="Assistant" className="h-full w-full object-cover" />
-      </div>
+      <div className="w-[300px] h-[400px] flex flex-col items-center overflow-hidden rounded-3xl shadow-lg bg-white/10">
+        <img src={userData?.assistantImage} alt="Assistant" className="h-full w-full object-cover" />
+      </div>
 
-      <h1 className="text-white text-2xl mt-6">
-        I'm <span className="font-bold">{userData?.assistantName}</span>
-      </h1>
+      <h1 className="text-white text-2xl mt-6">
+        I'm <span className="font-bold">{userData?.assistantName}</span>
+      </h1>
 
-      <p className="mt-4 text-sm text-gray-300">
-        {listening ? "🎤 Listening..." : "🛑 Not Listening"}
-      </p>
+      <p className="mt-4 text-sm text-gray-300">
+        {listening ? "🎤 Listening..." : "🛑 Not Listening"}
+      </p>
 
-      {/* You can re-enable these if you need them for debugging */}
-      {/*
-      <div className="mt-4 flex gap-2">
-        <button
-          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
-          onClick={() => speak("Hello! This is a test of the voice system.")}
-        >
-          Test Voice
-        </button>
-        <button
-          className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition"
-          onClick={resetRecognition}
-        >
-          Restart Recognition
-        </button>
-        <button
-          className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
-          onClick={() => {
-            stopRecognition();
-            console.log("Recognition manually stopped");
-          }}
-        >
-          Stop Recognition
-        </button>
-      </div>
-      */}
-    </div>
-  );
+      {/* You can re-enable these if you need them for debugging */}
+      {/*
+      <div className="mt-4 flex gap-2">
+        <button
+          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+          onClick={() => speak("Hello! This is a test of the voice system.")}
+        >
+          Test Voice
+        </button>
+        <button
+          className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition"
+          onClick={resetRecognition}
+        >
+          Restart Recognition
+        </button>
+        <button
+          className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
+          onClick={() => {
+            stopRecognition();
+            console.log("Recognition manually stopped");
+          }}
+        >
+          Stop Recognition
+        </button>
+      </div>
+      */}
+    </div>
+  );
 }
 
 export default Home;
