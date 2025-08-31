@@ -34,14 +34,14 @@ const geminiResponse = async (command, assistantName, userName) => {
     else if (lowerCaseCommand.includes("search on google")) {
       const query = lowerCaseCommand.replace("search on google", "").trim();
       responseData = {
-        type: "google_search",
+        type: "website",
         response: `Searching Google for ${query}.`,
-        query: query,
+        query,
         url: `https://www.google.com/search?q=${encodeURIComponent(query)}`
       };
     }
 
-    // --- 3. YOUTUBE OPEN / SEARCH ---
+    // --- 3. YOUTUBE ---
     else if (
       lowerCaseCommand.includes("open youtube") ||
       lowerCaseCommand.includes("search youtube") ||
@@ -59,10 +59,10 @@ const geminiResponse = async (command, assistantName, userName) => {
       }
 
       responseData = {
-        type: "youtube_search",
+        type: "website",
         response: query ? `Searching YouTube for ${query}.` : "Opening YouTube for you.",
         query: query || null,
-        url: url
+        url
       };
     }
 
@@ -85,20 +85,20 @@ const geminiResponse = async (command, assistantName, userName) => {
       else if (siteName.includes("calculator")) url = "https://www.google.com/search?q=calculator";
       else if (siteName.includes("weather")) url = "https://www.google.com/search?q=weather";
       else {
-        // Agar user ne direct domain bola
+        // Direct domain
         if (siteName.includes(".")) {
           url = `https://${siteName}`;
         } else {
-          // Agar unknown site hai → Google search
+          // Unknown site → Google search
           url = `https://www.google.com/search?q=${encodeURIComponent(siteName)}`;
         }
       }
 
       responseData = {
-        type: "open_website",
+        type: "website",
         response: `Opening ${siteName} for you.`,
         query: siteName,
-        url: url
+        url
       };
     }
 
@@ -115,11 +115,11 @@ const geminiResponse = async (command, assistantName, userName) => {
 You are a virtual assistant named ${assistantName} created by ${userName}.
 You must respond with a single, valid JSON object. Do not include any other text.
 The JSON object must have a "type" key and a "response" key.
-The "response" should be a short, friendly, spoken-friendly reply.
+The "response" should be a short, spoken-friendly reply.
 
-Your available command types and their JSON format:
-1. "general_knowledge": {"type": "general_knowledge", "response": "The capital of France is Paris."}
-2. "general": {"type": "general", "response": "Hello there! How can I help you?"}
+Types:
+- general_knowledge
+- general
 
 User request: "${command}"`;
 
@@ -146,7 +146,6 @@ User request: "${command}"`;
       }
     }
 
-    // Always return with original command for debugging
     responseData.userInput = command;
     return responseData;
 
