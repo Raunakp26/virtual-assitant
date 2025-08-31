@@ -144,7 +144,7 @@ function Home() {
   };
 
 const handleCommand = (data) => {
-  const { type, response, query, url, userInput } = data;
+  const { type, response, query, url } = data;
 
   console.log("=== HANDLING COMMAND ===");
   console.log("Type:", type);
@@ -165,32 +165,34 @@ const handleCommand = (data) => {
     case "open_website":
     case "google_search":
     case "youtube_search": {
-      // Agar backend se url mila hai → direct open
+      let finalUrl = "";
+
       if (url) {
-        const fullUrl = url.startsWith("http") ? url : `https://${url}`;
-        window.open(fullUrl, "_blank");
+        // Agar backend ne URL bheja hai
+        finalUrl = url.startsWith("http") ? url : `https://${url}`;
       } else if (query) {
-        // Agar backend se query aayi hai → apna URL banao
-        let searchUrl = "";
         if (type === "google_search") {
-          searchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+          finalUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
         } else if (type === "youtube_search") {
-          searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+          finalUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
         } else {
-          // generic website
-          searchUrl = query.includes(".")
-            ? `https://${query}`
-            : `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+          // Agar query ek domain jaisa lagta hai → site open karo
+          if (query.includes(".com") || query.includes(".org") || query.includes(".in")) {
+            finalUrl = `https://${query}`;
+          } else {
+            // Otherwise, Google search
+            finalUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+          }
         }
-        window.open(searchUrl, "_blank");
       } else {
-        // fallback: youtube ya google khol do
-        if (type === "youtube_search") {
-          window.open("https://www.youtube.com", "_blank");
-        } else if (type === "google_search") {
-          window.open("https://www.google.com", "_blank");
-        }
+        // fallback
+        finalUrl =
+          type === "youtube_search"
+            ? "https://www.youtube.com"
+            : "https://www.google.com";
       }
+
+      if (finalUrl) window.open(finalUrl, "_blank");
       break;
     }
 
@@ -211,6 +213,7 @@ const handleCommand = (data) => {
     }
   }
 };
+
 
 
 
