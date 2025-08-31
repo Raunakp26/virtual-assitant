@@ -34,7 +34,7 @@ const geminiResponse = async (command, assistantName, userName) => {
     else if (lowerCaseCommand.includes("search on google")) {
       const query = lowerCaseCommand.replace("search on google", "").trim();
       responseData = {
-        type: "website",
+        type: "google_search",   // ✅ frontend ke saath match
         response: `Searching Google for ${query}.`,
         query,
         url: `https://www.google.com/search?q=${encodeURIComponent(query)}`
@@ -59,7 +59,7 @@ const geminiResponse = async (command, assistantName, userName) => {
       }
 
       responseData = {
-        type: "website",
+        type: "youtube_search",   // ✅ frontend ke saath match
         response: query ? `Searching YouTube for ${query}.` : "Opening YouTube for you.",
         query: query || null,
         url
@@ -71,7 +71,6 @@ const geminiResponse = async (command, assistantName, userName) => {
       const siteName = lowerCaseCommand.replace("open", "").trim();
       let url;
 
-      // Shortcut dictionary
       if (siteName.includes("facebook")) url = "https://www.facebook.com";
       else if (siteName.includes("instagram")) url = "https://www.instagram.com";
       else if (siteName.includes("twitter") || siteName.includes("x")) url = "https://x.com";
@@ -85,20 +84,18 @@ const geminiResponse = async (command, assistantName, userName) => {
       else if (siteName.includes("calculator")) url = "https://www.google.com/search?q=calculator";
       else if (siteName.includes("weather")) url = "https://www.google.com/search?q=weather";
       else {
-        // Direct domain
         if (siteName.includes(".")) {
           url = `https://${siteName}`;
         } else {
-          // Unknown site → Google search
           url = `https://www.google.com/search?q=${encodeURIComponent(siteName)}`;
         }
       }
 
       responseData = {
-        type: "website",
+        type: "open_website",   // ✅ frontend ke saath match
         response: `Opening ${siteName} for you.`,
         query: siteName,
-        url:url
+        url
       };
     }
 
@@ -115,7 +112,6 @@ const geminiResponse = async (command, assistantName, userName) => {
 You are a virtual assistant named ${assistantName} created by ${userName}.
 You must respond with a single, valid JSON object. Do not include any other text.
 The JSON object must have a "type" key and a "response" key.
-The "response" should be a short, spoken-friendly reply.
 
 Types:
 - general_knowledge
@@ -123,16 +119,10 @@ Types:
 
 User request: "${command}"`;
 
-      console.log("Making request to Gemini API for general knowledge...");
       const result = await axios.post(apiUrl, {
-        contents: [
-          {
-            parts: [{ text: prompt }]
-          }
-        ]
+        contents: [{ parts: [{ text: prompt }] }]
       });
 
-      console.log("Gemini API response received");
       const geminiResponseText = result.data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
       try {
