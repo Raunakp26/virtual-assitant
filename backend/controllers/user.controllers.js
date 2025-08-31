@@ -130,115 +130,68 @@ export const askToAssistant = async (req, res) => {
     console.log("=== ASSISTANT REQUEST ===");
     console.log("Command:", command);
     console.log("User object:", req.user);
-    console.log("User ID:", req.user?.userId);
-    
+
     if (!req.user || !req.user.userId) {
-      console.error("User not authenticated or user ID missing");
       return res.status(401).json({ response: "User not authenticated" });
     }
-    
+
     const user = await User.findById(req.user.userId);
     if (!user) {
       return res.status(404).json({ response: "User not found" });
     }
-    
-    // Add command to history
+
+    // Save history
     user.history.push(command);
     await user.save();
-    
-    const userName = user.name;
-    const assistantName = user.assistantName;
-    console.log("User Name:", userName);
-    console.log("Assistant Name:", assistantName);
-    
-    const result = await geminiResponse(command, assistantName, userName);
-    console.log("Gemini Response:", result);
 
-    if (!result || !result.candidates || !result.candidates[0]) {
-      console.error("No valid response from Gemini");
-      return res.status(400).json({ response: "Sorry, I can't understand that" });
-    }
+    const result = await geminiResponse(command, user.assistantName, user.name);
+    console.log("Gemini Final Response:", result);
 
-    const geminiText = result.candidates[0].content.parts[0].text;
-    console.log("Gemini Text:", geminiText);
-    
-    const jsonMatch = geminiText.match(/{[\s\S]*}/);
-    
-    if (!jsonMatch) {
-      console.error("No JSON found in Gemini response");
-      return res.status(400).json({ response: "Sorry, I can't understand that" });
-    }
-    
-    let gemResult;
-    try {
-      gemResult = JSON.parse(jsonMatch[0]);
-      console.log("Parsed JSON:", gemResult);
-    } catch (parseError) {
-      console.error("JSON parse error:", parseError);
-      return res.status(400).json({ response: "Sorry, I can't understand that" });
-    }
-    const type = gemResult.type;
-    console.log("Parsed Result:", gemResult);
+    // Ab yaha dobara parsing ki zarurat nahi
+    const type = result.type || "general";
 
     switch (type) {
-    
-      case 'get_date':
+      case "get_date":
         return res.json({
-          type,
-          userInput: gemResult.userInput,
+          ...result,
           response: `current date is ${moment().format("YYYY-MM-DD")}`
         });
 
-      case 'get_time':
+      case "get_time":
         return res.json({
-          type,
-          userInput: gemResult.userInput,
+          ...result,
           response: `current time is ${moment().format("hh:mm A")}`
         });
-        
-      case 'get_month':
+
+      case "get_month":
         return res.json({
-          type,
-          userInput: gemResult.userInput,
+          ...result,
           response: `today is ${moment().format("MMMM")}`
         });
 
-      case 'get_day':
+      case "get_day":
         return res.json({
-          type,
-          userInput: gemResult.userInput,
+          ...result,
           response: `today is ${moment().format("dddd")}`
         });
-        
-      case 'google_search':
-      case 'youtube_search':
-      case 'youtube_play':
-      case 'general':
-      case 'calculator_open':
-      case 'instagram_open':
-      case 'facebook_open':
-      case 'weather-show':
-      case 'open_app':
-        return res.json({
-          type,
-          userInput: gemResult.userInput,
-          response: gemResult.response
-        });
-        
+
+      case "google_search":
+      case "youtube_search":
+      case "open_website":
+      case "general":
+      case "general_knowledge":
+        return res.json(result);
+
       default:
         console.warn("Unknown command type:", type);
         return res.json({
           type: "general",
-          userInput: gemResult.userInput || command,
-          response: gemResult.response || "I didn't understand that command."
+          response: result.response || "I didn't understand that command.",
+          userInput: command
         });
-      
     }
   } catch (error) {
-    console.error("=== ASSISTANT ERROR ===");
-    console.error("Error:", error);
-    console.error("Error message:", error.message);
-    console.error("=======================");
+    console.error("=== ASSISTANT ERROR ===", error);
     return res.status(500).json({ response: "Ask assistant error." });
   }
 };
