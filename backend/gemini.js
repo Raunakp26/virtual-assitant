@@ -98,7 +98,7 @@ const geminiResponse = async (command, assistantName, userName) => {
         type: "website",
         response: `Opening ${siteName} for you.`,
         query: siteName,
-        url
+        url:url
       };
     }
 
