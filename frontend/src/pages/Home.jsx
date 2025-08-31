@@ -143,8 +143,8 @@ function Home() {
     synth.speak(utterance);
   };
 
-  const handleCommand = (data) => {
-  const { type, response, query, url } = data;
+ const handleCommand = (data) => {
+  const { type, response, query, url, userInput } = data;
 
   console.log("=== HANDLING COMMAND ===");
   console.log("Type:", type);
@@ -158,17 +158,17 @@ function Home() {
     return;
   }
 
-  // Speak the assistant response first
+  // Pehle bol do response ko
   speak(response);
 
   switch (type) {
     case "open_website": {
       if (url) {
-        // Agar API se direct URL mila
+        // Agar backend ne proper URL diya hai
         const fullUrl = url.startsWith("http") ? url : `https://${url}`;
         window.open(fullUrl, "_blank");
       } else if (query) {
-        // Agar sirf query mili (e.g., "open github")
+        // Agar sirf query hai (jaise "open github")
         const searchUrl = query.includes(".")
           ? `https://${query}`
           : `https://www.google.com/search?q=${encodeURIComponent(query)}`;
@@ -202,16 +202,19 @@ function Home() {
     case "get_date":
     case "get_day":
     case "get_month":
-    case "general":
-      // Ye commands sirf reply bolenge (kuch open nahi karna)
+    case "general": {
+      // Sirf bolne wala response (kuch kholna nahi)
       break;
+    }
 
-    default:
+    default: {
       console.warn("⚠️ Unknown command type:", type);
       speak("Sorry, I am not sure how to handle that.");
       break;
+    }
   }
 };
+
 
 
   const safeRecognition = () => {
