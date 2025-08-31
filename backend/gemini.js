@@ -6,72 +6,103 @@ const geminiResponse = async (command, assistantName, userName) => {
     const apiKey = process.env.GEMINI_API_KEY;
     const lowerCaseCommand = command.toLowerCase();
 
-    // --- 1. LOCAL LOGIC FOR ALL SITES (Corrected & Enhanced) ---
     let responseData = null;
 
-    // Handle real-time data first
+    // --- 1. TIME & DATE ---
     if (lowerCaseCommand.includes("what is the time") || lowerCaseCommand.includes("current time")) {
       const now = new Date();
-      const timeString = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      const timeString = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
       responseData = {
-        type: 'get_time',
+        type: "get_time",
         response: `The current time is ${timeString}`
       };
     } else if (lowerCaseCommand.includes("what is the date") || lowerCaseCommand.includes("today's date")) {
       const now = new Date();
-      const dateString = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      const dateString = now.toLocaleDateString("en-US", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric"
+      });
       responseData = {
-        type: 'get_date',
+        type: "get_date",
         response: `Today's date is ${dateString}`
       };
     }
-    // Handle site searches and openings by extracting the query directly
+
+    // --- 2. GOOGLE SEARCH ---
     else if (lowerCaseCommand.includes("search on google")) {
       const query = lowerCaseCommand.replace("search on google", "").trim();
       responseData = {
-        type: 'google_search',
+        type: "google_search",
         response: `Searching Google for ${query}.`,
-        query: query
-      };
-    } else if (lowerCaseCommand.includes("open youtube") || lowerCaseCommand.includes("search youtube") || lowerCaseCommand.includes("play on youtube") || lowerCaseCommand.includes("play song")) {
-      // Polished: Use a single regex to remove all possible phrases at once
-      const query = lowerCaseCommand
-        .replace(/(open|search|play on|play) youtube/g, "")
-        .replace(/for\s+/g, "") // Also remove the word "for" if present
-        .trim();
-        
-      responseData = {
-        type: 'youtube_search',
-        response: `Searching YouTube for ${query}.`,
-        query: query
-      };
-    } else if (lowerCaseCommand.includes("open facebook")) {
-      responseData = {
-        type: 'open_website',
-        response: "Opening Facebook for you.",
-        url: "https://www.facebook.com"
-      };
-    } else if (lowerCaseCommand.includes("open instagram")) {
-      responseData = {
-        type: 'open_website',
-        response: "Opening Instagram for you.",
-        url: "https://www.instagram.com"
-      };
-    } else if (lowerCaseCommand.includes("open calculator")) {
-      responseData = {
-        type: 'open_website',
-        response: "Opening the calculator.",
-        url: "https://www.google.com/search?q=calculator"
-      };
-    } else if (lowerCaseCommand.includes("show weather") || lowerCaseCommand.includes("check weather")) {
-      responseData = {
-        type: 'open_website',
-        response: "Showing you the current weather.",
-        url: "https://www.google.com/search?q=weather"
+        query: query,
+        url: `https://www.google.com/search?q=${encodeURIComponent(query)}`
       };
     }
 
-    // If a specific command was not found, fall back to the Gemini API
+    // --- 3. YOUTUBE OPEN / SEARCH ---
+    else if (
+      lowerCaseCommand.includes("open youtube") ||
+      lowerCaseCommand.includes("search youtube") ||
+      lowerCaseCommand.includes("play on youtube") ||
+      lowerCaseCommand.includes("play song")
+    ) {
+      const query = lowerCaseCommand
+        .replace(/(open|search|play on|play) youtube/g, "")
+        .replace(/for\s+/g, "")
+        .trim();
+
+      let url = "https://www.youtube.com";
+      if (query) {
+        url = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+      }
+
+      responseData = {
+        type: "youtube_search",
+        response: query ? `Searching YouTube for ${query}.` : "Opening YouTube for you.",
+        query: query || null,
+        url: url
+      };
+    }
+
+    // --- 4. GENERIC WEBSITE OPENER ---
+    else if (lowerCaseCommand.startsWith("open ")) {
+      const siteName = lowerCaseCommand.replace("open", "").trim();
+      let url;
+
+      // Shortcut dictionary
+      if (siteName.includes("facebook")) url = "https://www.facebook.com";
+      else if (siteName.includes("instagram")) url = "https://www.instagram.com";
+      else if (siteName.includes("twitter") || siteName.includes("x")) url = "https://x.com";
+      else if (siteName.includes("linkedin")) url = "https://www.linkedin.com";
+      else if (siteName.includes("gmail")) url = "https://mail.google.com";
+      else if (siteName.includes("amazon")) url = "https://www.amazon.in";
+      else if (siteName.includes("flipkart")) url = "https://www.flipkart.com";
+      else if (siteName.includes("netflix")) url = "https://www.netflix.com";
+      else if (siteName.includes("zomato")) url = "https://www.zomato.com";
+      else if (siteName.includes("swiggy")) url = "https://www.swiggy.com";
+      else if (siteName.includes("calculator")) url = "https://www.google.com/search?q=calculator";
+      else if (siteName.includes("weather")) url = "https://www.google.com/search?q=weather";
+      else {
+        // Agar user ne direct domain bola
+        if (siteName.includes(".")) {
+          url = `https://${siteName}`;
+        } else {
+          // Agar unknown site hai → Google search
+          url = `https://www.google.com/search?q=${encodeURIComponent(siteName)}`;
+        }
+      }
+
+      responseData = {
+        type: "open_website",
+        response: `Opening ${siteName} for you.`,
+        query: siteName,
+        url: url
+      };
+    }
+
+    // --- 5. FALLBACK TO GEMINI ---
     if (!responseData) {
       if (!baseUrl || !apiKey) {
         console.error("Missing Gemini configuration!");
@@ -87,22 +118,18 @@ The JSON object must have a "type" key and a "response" key.
 The "response" should be a short, friendly, spoken-friendly reply.
 
 Your available command types and their JSON format:
-1. "general_knowledge": For factual or informational questions.
-   - Example JSON: {"type": "general_knowledge", "response": "The capital of France is Paris."}
-2. "general": Catch-all for simple conversational requests (e.g., greetings, jokes).
-   - Example JSON: {"type": "general", "response": "Hello there! How can I help you?"}
-
-Instructions:
-- If a user asks "who created you?", respond that you were created by ${userName}.
-- Always respond with valid JSON only.
+1. "general_knowledge": {"type": "general_knowledge", "response": "The capital of France is Paris."}
+2. "general": {"type": "general", "response": "Hello there! How can I help you?"}
 
 User request: "${command}"`;
 
       console.log("Making request to Gemini API for general knowledge...");
       const result = await axios.post(apiUrl, {
-        "contents": [{
-          "parts": [{ "text": prompt }]
-        }]
+        contents: [
+          {
+            parts: [{ text: prompt }]
+          }
+        ]
       });
 
       console.log("Gemini API response received");
@@ -119,9 +146,9 @@ User request: "${command}"`;
       }
     }
 
-    // Add the original user command and return the final response
+    // Always return with original command for debugging
     responseData.userInput = command;
-    return  responseData ;
+    return responseData;
 
   } catch (error) {
     console.error("=== GEMINI ERROR ===");
