@@ -143,7 +143,7 @@ function Home() {
     synth.speak(utterance);
   };
 
- const handleCommand = (data) => {
+const handleCommand = (data) => {
   const { type, response, query, url, userInput } = data;
 
   console.log("=== HANDLING COMMAND ===");
@@ -158,41 +158,38 @@ function Home() {
     return;
   }
 
-  // Pehle bol do response ko
+  // Pehle bol do
   speak(response);
 
   switch (type) {
-    case "open_website": {
+    case "open_website":
+    case "google_search":
+    case "youtube_search": {
+      // Agar backend se url mila hai → direct open
       if (url) {
-        // Agar backend ne proper URL diya hai
         const fullUrl = url.startsWith("http") ? url : `https://${url}`;
         window.open(fullUrl, "_blank");
       } else if (query) {
-        // Agar sirf query hai (jaise "open github")
-        const searchUrl = query.includes(".")
-          ? `https://${query}`
-          : `https://www.google.com/search?q=${encodeURIComponent(query)}`;
-        window.open(searchUrl, "_blank");
-      }
-      break;
-    }
-
-    case "google_search": {
-      if (query) {
-        const encodedQuery = encodeURIComponent(query);
-        const searchUrl = `https://www.google.com/search?q=${encodedQuery}`;
-        window.open(searchUrl, "_blank");
-      }
-      break;
-    }
-
-    case "youtube_search": {
-      if (query) {
-        const encodedQuery = encodeURIComponent(query);
-        const searchUrl = `https://www.youtube.com/results?search_query=${encodedQuery}`;
+        // Agar backend se query aayi hai → apna URL banao
+        let searchUrl = "";
+        if (type === "google_search") {
+          searchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+        } else if (type === "youtube_search") {
+          searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+        } else {
+          // generic website
+          searchUrl = query.includes(".")
+            ? `https://${query}`
+            : `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+        }
         window.open(searchUrl, "_blank");
       } else {
-        window.open("https://www.youtube.com", "_blank");
+        // fallback: youtube ya google khol do
+        if (type === "youtube_search") {
+          window.open("https://www.youtube.com", "_blank");
+        } else if (type === "google_search") {
+          window.open("https://www.google.com", "_blank");
+        }
       }
       break;
     }
@@ -203,7 +200,7 @@ function Home() {
     case "get_day":
     case "get_month":
     case "general": {
-      // Sirf bolne wala response (kuch kholna nahi)
+      // Sirf bolna hai
       break;
     }
 
