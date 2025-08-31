@@ -144,56 +144,75 @@ function Home() {
   };
 
   const handleCommand = (data) => {
-    const { type, response, query, url } = data;
+  const { type, response, query, url } = data;
 
-    console.log("=== HANDLING COMMAND ===");
-    console.log("Type:", type);
-    console.log("Response:", response);
-    console.log("Query:", query);
-    console.log("URL:", url);
-    console.log("========================");
+  console.log("=== HANDLING COMMAND ===");
+  console.log("Type:", type);
+  console.log("Response:", response);
+  console.log("Query:", query);
+  console.log("URL:", url);
+  console.log("========================");
 
-    if (!response || response.trim() === "") {
-      console.error("No response to speak!");
-      return;
-    }
+  if (!response || response.trim() === "") {
+    console.error("No response to speak!");
+    return;
+  }
 
-    // Speak the response first, as it's common to all commands
-    speak(response);
+  // Speak the assistant response first
+  speak(response);
 
-    // Use a switch statement for better organization and to fix the logic
-    switch (type) {
-      case "open_website": {
-        if (url) {
-          const fullUrl = url.startsWith("http") ? url : `https://${url}`;
-          window.open(fullUrl, "_blank");
-        }
-        break;
-      }
-      case "google_search":
-      case "youtube_search": {
-        if (query) {
-          const encodedQuery = encodeURIComponent(query);
-          const searchUrl = type === "google_search"
-            ? `https://www.google.com/search?q=${encodedQuery}`
-            : `https://www.youtube.com/results?search_query=${encodedQuery}`;
-          window.open(searchUrl, "_blank");
-        }
-        break;
-      }
-      case "general_knowledge":
-      case "get_time":
-      case "get_date":
-      case "get_day":
-      case "get_month":
-      case "general":
-        // No action needed for these types, as the response is already handled by speak(response)
-        break;
-      default:
-        console.warn("Unknown command type:", type);
-        break;
-    }
-  };
+  switch (type) {
+    case "open_website": {
+      if (url) {
+        // Agar API se direct URL mila
+        const fullUrl = url.startsWith("http") ? url : `https://${url}`;
+        window.open(fullUrl, "_blank");
+      } else if (query) {
+        // Agar sirf query mili (e.g., "open github")
+        const searchUrl = query.includes(".")
+          ? `https://${query}`
+          : `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+        window.open(searchUrl, "_blank");
+      }
+      break;
+    }
+
+    case "google_search": {
+      if (query) {
+        const encodedQuery = encodeURIComponent(query);
+        const searchUrl = `https://www.google.com/search?q=${encodedQuery}`;
+        window.open(searchUrl, "_blank");
+      }
+      break;
+    }
+
+    case "youtube_search": {
+      if (query) {
+        const encodedQuery = encodeURIComponent(query);
+        const searchUrl = `https://www.youtube.com/results?search_query=${encodedQuery}`;
+        window.open(searchUrl, "_blank");
+      } else {
+        window.open("https://www.youtube.com", "_blank");
+      }
+      break;
+    }
+
+    case "general_knowledge":
+    case "get_time":
+    case "get_date":
+    case "get_day":
+    case "get_month":
+    case "general":
+      // Ye commands sirf reply bolenge (kuch open nahi karna)
+      break;
+
+    default:
+      console.warn("⚠️ Unknown command type:", type);
+      speak("Sorry, I am not sure how to handle that.");
+      break;
+  }
+};
+
 
   const safeRecognition = () => {
     if (!isSpeakingRef.current && !isRecognizingRef.current) {
