@@ -84,7 +84,7 @@ else if (lowerCaseCommand.startsWith("open ")) {
   } else if (siteName.includes("instagram")) {
     url = "https://www.instagram.com";
     type = "instagram_open";
-  } else if (siteName.includes("twitter")  {
+  } else if (siteName.includes("twitter"))  {
     url = "https://www.twitter.com";
     type = "twitter_open";
   } else if (siteName.includes("linkedin")) {
