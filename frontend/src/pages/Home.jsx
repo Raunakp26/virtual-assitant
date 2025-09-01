@@ -326,6 +326,7 @@ const handleCommand = (data) => {
       break;
   }
 };
+};
     recognition.onstart = () => {
       isRecognizingRef.current = true;
       setListening(true);
