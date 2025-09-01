@@ -99,6 +99,35 @@ function Home() {
   };
 
 // ✅ UPDATED HANDLECOMMAND FUNCTION WITH RESPONSE-BASED DETECTION
+
+  const safeRecognition = () => {
+    if (!isSpeakingRef.current && !isRecognizingRef.current) startRecognition();
+  };
+
+  const fallbackIntervalRef = useRef(null);
+
+  const startJarvis = () => {
+    if (isRecognizingRef.current) return;
+    speak("Hello there! How can I help you today?");
+    safeRecognition();
+
+    fallbackIntervalRef.current = setInterval(() => {
+      if (!isSpeakingRef.current && !isRecognizingRef.current && isMountedRef.current) {
+        safeRecognition();
+      }
+    }, 15000);
+  };
+
+  useEffect(() => {
+    if (recognitionRef.current) return;
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+
+    recognition.continuous = true;
+    recognition.lang = "en-US";
+    recognitionRef.current = recognition;
+// ✅ UPDATED HANDLECOMMAND FUNCTION WITH RESPONSE-BASED DETECTION
 const handleCommand = (data) => {
   const { type, response, query, url } = data;
 
@@ -203,7 +232,15 @@ const handleCommand = (data) => {
   switch (type) {
     case "open_website":
     case "google_search":
-    case "youtube_search": {
+    case "youtube_search":
+    case "facebook_open":
+    case "instagram_open":
+    case "twitter_open":
+    case "linkedin_open":
+    case "gmail_open":
+    case "amazon_open":
+    case "flipkart_open":
+    case "netflix_open": {
       if (url) {
         console.log("✅ Opening URL from backend:", url);
         setTimeout(() => {
@@ -227,10 +264,27 @@ const handleCommand = (data) => {
             }
           }
         } else {
+          // Default URLs when no query - handle all website types
           if (type === "youtube_search") {
             fallbackUrl = "https://www.youtube.com";
           } else if (type === "google_search") {
             fallbackUrl = "https://www.google.com";
+          } else if (type === "facebook_open") {
+            fallbackUrl = "https://www.facebook.com";
+          } else if (type === "instagram_open") {
+            fallbackUrl = "https://www.instagram.com";
+          } else if (type === "twitter_open") {
+            fallbackUrl = "https://x.com";
+          } else if (type === "linkedin_open") {
+            fallbackUrl = "https://www.linkedin.com";
+          } else if (type === "gmail_open") {
+            fallbackUrl = "https://mail.google.com";
+          } else if (type === "amazon_open") {
+            fallbackUrl = "https://www.amazon.in";
+          } else if (type === "flipkart_open") {
+            fallbackUrl = "https://www.flipkart.com";
+          } else if (type === "netflix_open") {
+            fallbackUrl = "https://www.netflix.com";
           }
         }
 
@@ -259,34 +313,6 @@ const handleCommand = (data) => {
       break;
   }
 };
-  const safeRecognition = () => {
-    if (!isSpeakingRef.current && !isRecognizingRef.current) startRecognition();
-  };
-
-  const fallbackIntervalRef = useRef(null);
-
-  const startJarvis = () => {
-    if (isRecognizingRef.current) return;
-    speak("Hello there! How can I help you today?");
-    safeRecognition();
-
-    fallbackIntervalRef.current = setInterval(() => {
-      if (!isSpeakingRef.current && !isRecognizingRef.current && isMountedRef.current) {
-        safeRecognition();
-      }
-    }, 15000);
-  };
-
-  useEffect(() => {
-    if (recognitionRef.current) return;
-
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-
-    recognition.continuous = true;
-    recognition.lang = "en-US";
-    recognitionRef.current = recognition;
-
     recognition.onstart = () => {
       isRecognizingRef.current = true;
       setListening(true);
