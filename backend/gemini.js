@@ -4,6 +4,9 @@ const geminiResponse = async (command, assistantName, userName) => {
   try {
     const baseUrl = process.env.GEMINI_API_URL;
     const apiKey = process.env.GEMINI_API_KEY;
+     console.log("🔍 BACKEND RECEIVED:");
+    console.log("Command:", command);
+    console.log("Command toLowerCase:", command.toLowerCase())
     const lowerCaseCommand = command.toLowerCase();
 
     let responseData = null;
