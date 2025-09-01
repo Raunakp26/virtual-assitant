@@ -99,69 +99,87 @@ function Home() {
   };
 
   // ✅ FIXED HANDLECOMMAND
-  const handleCommand = (data) => {
-    const { type, response, query, url } = data;
+ / ✅ UPDATED HANDLECOMMAND FUNCTION
+const handleCommand = (data) => {
+  const { type, response, query, url } = data;
 
-    console.log("=== HANDLING COMMAND ===");
-    console.log("Type:", type);
-    console.log("Response:", response);
-    console.log("Query:", query);
-    console.log("URL:", url);
-    console.log("========================");
+  console.log("=== HANDLING COMMAND ===");
+  console.log("Type:", type);
+  console.log("Response:", response);
+  console.log("Query:", query);
+  console.log("URL:", url);
+  console.log("Raw data:", JSON.stringify(data, null, 2));
+  console.log("========================");
 
-    if (!response || response.trim() === "") return;
-
+  // Always speak the response first
+  if (response && response.trim() !== "") {
     speak(response);
+  }
 
-    switch (type) {
-      case "open_website":
-      case "google_search":
-      case "youtube_search": {
-        let finalUrl = "";
-
-        if (url) {
-          finalUrl = url.startsWith("http") ? url : `https://${url}`;
-        } else if (query) {
+  // Handle website opening commands
+  switch (type) {
+    case "open_website":
+    case "google_search":
+    case "youtube_search": {
+      if (url) {
+        console.log("✅ Opening URL from backend:", url);
+        // Add a small delay to let the speech start, then open the website
+        setTimeout(() => {
+          window.open(url, "_blank");
+        }, 500);
+      } else {
+        console.warn("⚠️ No URL provided by backend for type:", type);
+        // Fallback URL construction (shouldn't be needed with your backend)
+        let fallbackUrl = "";
+        
+        if (query) {
           if (type === "google_search") {
-            finalUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+            fallbackUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
           } else if (type === "youtube_search") {
-            finalUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
-          } else {
-            // check if query looks like a domain
-            if (/\.[a-z]{2,}$/.test(query)) {
-              finalUrl = query.startsWith("http") ? query : `https://${query}`;
+            fallbackUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+          } else if (type === "open_website") {
+            // Check if query looks like a domain
+            if (/\.[a-z]{2,}$/i.test(query)) {
+              fallbackUrl = query.startsWith("http") ? query : `https://${query}`;
             } else {
-              finalUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+              fallbackUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
             }
           }
         } else {
-          finalUrl = type === "youtube_search"
-            ? "https://www.youtube.com"
-            : "https://www.google.com";
+          // Default URLs when no query
+          if (type === "youtube_search") {
+            fallbackUrl = "https://www.youtube.com";
+          } else if (type === "google_search") {
+            fallbackUrl = "https://www.google.com";
+          }
         }
 
-        if (finalUrl) {
-          console.log("Opening URL:", finalUrl);
-          window.open(finalUrl, "_blank");
+        if (fallbackUrl) {
+          console.log("🔄 Using fallback URL:", fallbackUrl);
+          setTimeout(() => {
+            window.open(fallbackUrl, "_blank");
+          }, 500);
         }
-        break;
       }
-
-      case "general_knowledge":
-      case "get_time":
-      case "get_date":
-      case "get_day":
-      case "get_month":
-      case "general":
-        // Sirf bolna hai
-        break;
-
-      default:
-        console.warn("⚠️ Unknown command type:", type);
-        speak("Sorry, I am not sure how to handle that.");
-        break;
+      break;
     }
-  };
+
+    case "general_knowledge":
+    case "get_time":
+    case "get_date":
+    case "get_day":
+    case "get_month":
+    case "general":
+      // Just speak the response (already done above)
+      console.log("ℹ️ Informational response - no action needed");
+      break;
+
+    default:
+      console.warn("⚠️ Unknown command type:", type);
+      speak("Sorry, I'm not sure how to handle that.");
+      break;
+  }
+};
 
   const safeRecognition = () => {
     if (!isSpeakingRef.current && !isRecognizingRef.current) startRecognition();
