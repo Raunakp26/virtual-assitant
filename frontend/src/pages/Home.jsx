@@ -98,8 +98,7 @@ function Home() {
     synth.speak(utterance);
   };
 
-  // ✅ FIXED HANDLECOMMAND
-// ✅ UPDATED HANDLECOMMAND FUNCTION
+// ✅ UPDATED HANDLECOMMAND FUNCTION WITH RESPONSE-BASED DETECTION
 const handleCommand = (data) => {
   const { type, response, query, url } = data;
 
@@ -116,20 +115,103 @@ const handleCommand = (data) => {
     speak(response);
   }
 
-  // Handle website opening commands
+  // 🔧 SMART DETECTION: Check response text for website opening commands
+  const responseText = response?.toLowerCase() || "";
+  
+  if (type === "general" && responseText.includes("opening")) {
+    let detectedUrl = "";
+    
+    if (responseText.includes("youtube")) {
+      detectedUrl = "https://www.youtube.com";
+      console.log("🔧 Detected YouTube command from response text");
+    } else if (responseText.includes("facebook")) {
+      detectedUrl = "https://www.facebook.com";
+      console.log("🔧 Detected Facebook command from response text");
+    } else if (responseText.includes("instagram")) {
+      detectedUrl = "https://www.instagram.com";
+      console.log("🔧 Detected Instagram command from response text");
+    } else if (responseText.includes("twitter") || responseText.includes("x.com")) {
+      detectedUrl = "https://x.com";
+      console.log("🔧 Detected Twitter/X command from response text");
+    } else if (responseText.includes("linkedin")) {
+      detectedUrl = "https://www.linkedin.com";
+      console.log("🔧 Detected LinkedIn command from response text");
+    } else if (responseText.includes("gmail")) {
+      detectedUrl = "https://mail.google.com";
+      console.log("🔧 Detected Gmail command from response text");
+    } else if (responseText.includes("amazon")) {
+      detectedUrl = "https://www.amazon.in";
+      console.log("🔧 Detected Amazon command from response text");
+    } else if (responseText.includes("flipkart")) {
+      detectedUrl = "https://www.flipkart.com";
+      console.log("🔧 Detected Flipkart command from response text");
+    } else if (responseText.includes("netflix")) {
+      detectedUrl = "https://www.netflix.com";
+      console.log("🔧 Detected Netflix command from response text");
+    } else if (responseText.includes("google")) {
+      detectedUrl = "https://www.google.com";
+      console.log("🔧 Detected Google command from response text");
+    }
+    
+    if (detectedUrl) {
+      console.log("🚀 Opening detected URL:", detectedUrl);
+      setTimeout(() => {
+        window.open(detectedUrl, "_blank");
+      }, 500);
+      return; // Exit early since we handled it
+    }
+  }
+
+  // Handle search commands from general responses
+  if (type === "general" && responseText.includes("searching")) {
+    let searchUrl = "";
+    
+    if (responseText.includes("google")) {
+      // Extract search query from user input if available
+      const userInput = data.userInput?.toLowerCase() || "";
+      const searchQuery = userInput.replace(/.*search.*google.*for\s*/i, "").replace(/.*search.*on.*google\s*/i, "").trim();
+      
+      if (searchQuery) {
+        searchUrl = `https://www.google.com/search?q=${encodeURIComponent(searchQuery)}`;
+      } else {
+        searchUrl = "https://www.google.com";
+      }
+      console.log("🔧 Detected Google search from response text");
+    } else if (responseText.includes("youtube")) {
+      // Extract search query from user input if available
+      const userInput = data.userInput?.toLowerCase() || "";
+      const searchQuery = userInput.replace(/.*search.*youtube.*for\s*/i, "").replace(/.*play.*youtube\s*/i, "").trim();
+      
+      if (searchQuery) {
+        searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`;
+      } else {
+        searchUrl = "https://www.youtube.com";
+      }
+      console.log("🔧 Detected YouTube search from response text");
+    }
+    
+    if (searchUrl) {
+      console.log("🚀 Opening search URL:", searchUrl);
+      setTimeout(() => {
+        window.open(searchUrl, "_blank");
+      }, 500);
+      return; // Exit early since we handled it
+    }
+  }
+
+  // Handle normal typed responses (original logic)
   switch (type) {
     case "open_website":
     case "google_search":
     case "youtube_search": {
       if (url) {
         console.log("✅ Opening URL from backend:", url);
-        // Add a small delay to let the speech start, then open the website
         setTimeout(() => {
           window.open(url, "_blank");
         }, 500);
       } else {
         console.warn("⚠️ No URL provided by backend for type:", type);
-        // Fallback URL construction (shouldn't be needed with your backend)
+        // Fallback URL construction
         let fallbackUrl = "";
         
         if (query) {
@@ -138,7 +220,6 @@ const handleCommand = (data) => {
           } else if (type === "youtube_search") {
             fallbackUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
           } else if (type === "open_website") {
-            // Check if query looks like a domain
             if (/\.[a-z]{2,}$/i.test(query)) {
               fallbackUrl = query.startsWith("http") ? query : `https://${query}`;
             } else {
@@ -146,7 +227,6 @@ const handleCommand = (data) => {
             }
           }
         } else {
-          // Default URLs when no query
           if (type === "youtube_search") {
             fallbackUrl = "https://www.youtube.com";
           } else if (type === "google_search") {
@@ -170,7 +250,6 @@ const handleCommand = (data) => {
     case "get_day":
     case "get_month":
     case "general":
-      // Just speak the response (already done above)
       console.log("ℹ️ Informational response - no action needed");
       break;
 
@@ -180,7 +259,6 @@ const handleCommand = (data) => {
       break;
   }
 };
-
   const safeRecognition = () => {
     if (!isSpeakingRef.current && !isRecognizingRef.current) startRecognition();
   };
