@@ -297,7 +297,13 @@ const handleCommand = (data) => {
       }
       break;
     }
+  case "weather-show":
+  console.log("🌦 Showing weather");
+  speak(data.response);
 
+  // You can also display weather info in UI or call weather API
+  showWeatherOnUI(data); 
+  break;
     case "general_knowledge":
     case "get_time":
     case "get_date":
