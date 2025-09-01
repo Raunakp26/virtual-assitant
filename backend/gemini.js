@@ -71,59 +71,73 @@ else if (
 }
 
 // In your GENERIC WEBSITE OPENER section:
+// --- 4. GENERIC WEBSITE OPENER ---
+// --- 4. GENERIC WEBSITE OPENER ---
 else if (lowerCaseCommand.startsWith("open ")) {
   const siteName = lowerCaseCommand.replace("open", "").trim();
   let url;
-  let type;
+  let type = "open_website"; // default type
 
   if (siteName.includes("facebook")) {
     url = "https://www.facebook.com";
-    type = "facebook_open";  // or change to "open_website"
+    type = "facebook_open";
   } else if (siteName.includes("instagram")) {
     url = "https://www.instagram.com";
-    type = "instagram_open";  // or change to "open_website"
+    type = "instagram_open";
+  } else if (siteName.includes("twitter") || siteName.includes("x")) {
+    url = "https://x.com";
+    type = "twitter_open";
+  } else if (siteName.includes("linkedin")) {
+    url = "https://www.linkedin.com";
+    type = "linkedin_open";
+  } else if (siteName.includes("gmail")) {
+    url = "https://mail.google.com";
+    type = "gmail_open";
+  } else if (siteName.includes("amazon")) {
+    url = "https://www.amazon.in";
+    type = "amazon_open";
+  } else if (siteName.includes("flipkart")) {
+    url = "https://www.flipkart.com";
+    type = "flipkart_open";
+  } else if (siteName.includes("netflix")) {
+    url = "https://www.netflix.com";
+    type = "netflix_open";
+  } else if (siteName.includes("zomato")) {
+    url = "https://www.zomato.com";
+    type = "zomato_open";
+  } else if (siteName.includes("swiggy")) {
+    url = "https://www.swiggy.com";
+    type = "swiggy_open";
+  } else if (siteName.includes("calculator")) {
+    url = "https://www.google.com/search?q=calculator";
+    type = "calculator_open";
+  } else if (siteName.includes("weather")) {
+    url = "https://www.google.com/search?q=weather";
+    type = "weather_open";
+  } else {
+    // ✅ Generic fallback
+    if (siteName.includes(".")) {
+      url = `https://${siteName}`;
+    } else {
+      url = `https://www.google.com/search?q=${encodeURIComponent(siteName)}`;
+    }
+    type = "open_website";
   }
-  // ... rest of your conditions
 
   responseData = {
     type,
     response: `Opening ${siteName} for you.`,
     query: siteName,
-    url  // ✅ Make sure this is included!
+    url
   };
 }
-    // --- 4. GENERIC WEBSITE OPENER ---
-    else if (lowerCaseCommand.startsWith("open ")) {
-      const siteName = lowerCaseCommand.replace("open", "").trim();
-      let url;
 
-      if (siteName.includes("facebook")) url = "https://www.facebook.com";
-      else if (siteName.includes("instagram")) url = "https://www.instagram.com";
-      else if (siteName.includes("twitter") || siteName.includes("x")) url = "https://x.com";
-      else if (siteName.includes("linkedin")) url = "https://www.linkedin.com";
-      else if (siteName.includes("gmail")) url = "https://mail.google.com";
-      else if (siteName.includes("amazon")) url = "https://www.amazon.in";
-      else if (siteName.includes("flipkart")) url = "https://www.flipkart.com";
-      else if (siteName.includes("netflix")) url = "https://www.netflix.com";
-      else if (siteName.includes("zomato")) url = "https://www.zomato.com";
-      else if (siteName.includes("swiggy")) url = "https://www.swiggy.com";
-      else if (siteName.includes("calculator")) url = "https://www.google.com/search?q=calculator";
-      else if (siteName.includes("weather")) url = "https://www.google.com/search?q=weather";
-      else {
-        if (siteName.includes(".")) {
-          url = `https://${siteName}`;
-        } else {
-          url = `https://www.google.com/search?q=${encodeURIComponent(siteName)}`;
-        }
-      }
 
-      responseData = {
-        type: "open_website",   // ✅ frontend ke saath match
-        response: `Opening ${siteName} for you.`,
-        query: siteName,
-        url
-      };
-    }
+   
+
+     
+ 
+   
 
     // --- 5. FALLBACK TO GEMINI ---
     if (!responseData) {
