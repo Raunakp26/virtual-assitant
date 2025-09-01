@@ -45,30 +45,53 @@ const geminiResponse = async (command, assistantName, userName) => {
     }
 
     // --- 3. YOUTUBE ---
-    else if (
-      lowerCaseCommand.includes("open youtube") ||
-      lowerCaseCommand.includes("search youtube") ||
-      lowerCaseCommand.includes("play on youtube") ||
-      lowerCaseCommand.includes("play song")
-    ) {
-      const query = lowerCaseCommand
-        .replace(/(open|search|play on|play) youtube/g, "")
-        .replace(/for\s+/g, "")
-        .trim();
+// In your YOUTUBE section:
+else if (
+  lowerCaseCommand.includes("open youtube") ||
+  lowerCaseCommand.includes("search youtube") ||
+  lowerCaseCommand.includes("play on youtube") ||
+  lowerCaseCommand.includes("play song")
+) {
+  const query = lowerCaseCommand
+    .replace(/(open|search|play on|play) youtube/g, "")
+    .replace(/for\s+/g, "")
+    .trim();
 
-      let url = "https://www.youtube.com";
-      if (query) {
-        url = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
-      }
+  let url = "https://www.youtube.com";
+  if (query) {
+    url = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+  }
 
-      responseData = {
-        type: "youtube_search",   // ✅ frontend ke saath match
-        response: query ? `Searching YouTube for ${query}.` : "Opening YouTube for you.",
-        query: query || null,
-        url
-      };
-    }
+  responseData = {
+    type: "youtube_search",
+    response: query ? `Searching YouTube for ${query}.` : "Opening YouTube for you.",
+    query: query || null,
+    url  // ✅ Make sure this is included!
+  };
+}
 
+// In your GENERIC WEBSITE OPENER section:
+else if (lowerCaseCommand.startsWith("open ")) {
+  const siteName = lowerCaseCommand.replace("open", "").trim();
+  let url;
+  let type;
+
+  if (siteName.includes("facebook")) {
+    url = "https://www.facebook.com";
+    type = "facebook_open";  // or change to "open_website"
+  } else if (siteName.includes("instagram")) {
+    url = "https://www.instagram.com";
+    type = "instagram_open";  // or change to "open_website"
+  }
+  // ... rest of your conditions
+
+  responseData = {
+    type,
+    response: `Opening ${siteName} for you.`,
+    query: siteName,
+    url  // ✅ Make sure this is included!
+  };
+}
     // --- 4. GENERIC WEBSITE OPENER ---
     else if (lowerCaseCommand.startsWith("open ")) {
       const siteName = lowerCaseCommand.replace("open", "").trim();
