@@ -99,7 +99,7 @@ function Home() {
   };
 
   // ✅ FIXED HANDLECOMMAND
- / ✅ UPDATED HANDLECOMMAND FUNCTION
+// ✅ UPDATED HANDLECOMMAND FUNCTION
 const handleCommand = (data) => {
   const { type, response, query, url } = data;
 
