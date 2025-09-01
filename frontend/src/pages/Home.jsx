@@ -99,34 +99,6 @@ function Home() {
   };
 
 // ✅ UPDATED HANDLECOMMAND FUNCTION WITH RESPONSE-BASED DETECTION
-
-  const safeRecognition = () => {
-    if (!isSpeakingRef.current && !isRecognizingRef.current) startRecognition();
-  };
-
-  const fallbackIntervalRef = useRef(null);
-
-  const startJarvis = () => {
-    if (isRecognizingRef.current) return;
-    speak("Hello there! How can I help you today?");
-    safeRecognition();
-
-    fallbackIntervalRef.current = setInterval(() => {
-      if (!isSpeakingRef.current && !isRecognizingRef.current && isMountedRef.current) {
-        safeRecognition();
-      }
-    }, 15000);
-  };
-
-  useEffect(() => {
-    if (recognitionRef.current) return;
-
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-
-    recognition.continuous = true;
-    recognition.lang = "en-US";
-    recognitionRef.current = recognition;
 // ✅ UPDATED HANDLECOMMAND FUNCTION WITH RESPONSE-BASED DETECTION
 const handleCommand = (data) => {
   const { type, response, query, url } = data;
@@ -326,7 +298,35 @@ const handleCommand = (data) => {
       break;
   }
 };
-};
+
+  const safeRecognition = () => {
+    if (!isSpeakingRef.current && !isRecognizingRef.current) startRecognition();
+  };
+
+  const fallbackIntervalRef = useRef(null);
+
+  const startJarvis = () => {
+    if (isRecognizingRef.current) return;
+    speak("Hello there! How can I help you today?");
+    safeRecognition();
+
+    fallbackIntervalRef.current = setInterval(() => {
+      if (!isSpeakingRef.current && !isRecognizingRef.current && isMountedRef.current) {
+        safeRecognition();
+      }
+    }, 15000);
+  };
+
+  useEffect(() => {
+    if (recognitionRef.current) return;
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+
+    recognition.continuous = true;
+    recognition.lang = "en-US";
+    recognitionRef.current = recognition;
+
     recognition.onstart = () => {
       isRecognizingRef.current = true;
       setListening(true);
