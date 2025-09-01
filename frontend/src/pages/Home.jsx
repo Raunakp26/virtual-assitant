@@ -205,7 +205,7 @@ const handleCommand = (data) => {
   }, 500);
   return;
 }
-
+  }
 
   // Handle normal typed responses (original logic)
   switch (type) {
