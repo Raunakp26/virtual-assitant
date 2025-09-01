@@ -207,26 +207,33 @@ const handleCommand = (data) => {
       }
       console.log("🔧 Detected Google search from response text");
     } else if (responseText.includes("youtube")) {
-      // Extract search query from user input if available
-      const userInput = data.userInput?.toLowerCase() || "";
-      const searchQuery = userInput.replace(/.*search.*youtube.*for\s*/i, "").replace(/.*play.*youtube\s*/i, "").trim();
-      
-      if (searchQuery) {
-        searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`;
-      } else {
-        searchUrl = "https://www.youtube.com";
-      }
-      console.log("🔧 Detected YouTube search from response text");
-    }
-    
-    if (searchUrl) {
-      console.log("🚀 Opening search URL:", searchUrl);
-      setTimeout(() => {
-        window.open(searchUrl, "_blank");
-      }, 500);
-      return; // Exit early since we handled it
-    }
+  // Extract search query from user input if available
+  const userInput = data.userInput?.toLowerCase() || "";
+  
+  // ✅ Handle multiple patterns like "search on YouTube", "play on YouTube", "open YouTube <query>"
+  const searchQuery = userInput
+    .replace(/.*search.*youtube.*for\s*/i, "")
+    .replace(/.*search.*on.*youtube\s*/i, "")
+    .replace(/.*play.*on.*youtube\s*/i, "")
+    .replace(/.*open.*youtube\s*/i, "") // 🔧 Added this
+    .trim();
+  
+  let searchUrl = "";
+  if (searchQuery) {
+    searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`;
+  } else {
+    searchUrl = "https://www.youtube.com";
   }
+
+  console.log("🔧 Detected YouTube search/open from response text");
+  
+  console.log("🚀 Opening search URL:", searchUrl);
+  setTimeout(() => {
+    window.open(searchUrl, "_blank");
+  }, 500);
+  return;
+}
+
 
   // Handle normal typed responses (original logic)
   switch (type) {
